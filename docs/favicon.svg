@@ -3,6 +3,6 @@
     .sq { fill: #1a1a1a; }
     @media (prefers-color-scheme: dark) { .sq { fill: #ffffff; } }
   </style>
-  <rect class="sq" x="18" y="6" width="32" height="32"/>
-  <circle cx="24" cy="30" r="18" fill="#7f7f7f"/>
+  <rect class="sq" x="24" y="8" width="26" height="26"/>
+  <circle cx="24" cy="30" r="18" fill="#9e9e9e"/>
 </svg>

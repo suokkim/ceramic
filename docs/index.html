@@ -23,6 +23,10 @@
   .grid img {
     width: 100%; display: block; cursor: zoom-in;
   }
+  footer {
+    max-width: 1100px; margin: 4rem auto 0;
+    font-size: .8rem; color: #7a7570; letter-spacing: .08em;
+  }
   dialog { border: none; outline: none; padding: 0; margin: auto; background: transparent; max-width: 92vw; max-height: 92vh; }
   dialog img { max-width: 92vw; max-height: 92vh; display: block; cursor: zoom-out; }
   dialog::backdrop { background: rgba(30,25,20,.85); }
@@ -38,6 +42,7 @@
 </header>
 <div class="grid" id="grid"></div>
 <dialog id="viewer"><img id="viewerImg" alt=""></dialog>
+<footer>둥글뽀족 © 2026</footer>
 <script>
 fetch('images.json').then(r => r.json()).then(names => {
   const grid = document.getElementById('grid');

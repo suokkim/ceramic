@@ -24,5 +24,6 @@ for f in png/*.png; do
   cp "$f" "$out"
   sips -Z 1600 "$out" >/dev/null
 done
-python3 -c 'import json,glob,os;print(json.dumps(sorted(os.path.basename(p) for p in glob.glob("docs/images/*.png")),ensure_ascii=False))' > docs/images.json
+# 최근 작업(큰 번호)이 먼저 보이도록 역순 정렬
+python3 -c 'import json,glob,os;print(json.dumps(sorted((os.path.basename(p) for p in glob.glob("docs/images/*.png")),reverse=True),ensure_ascii=False))' > docs/images.json
 echo "완료: $(ls docs/images | wc -l | tr -d ' ')개 이미지"

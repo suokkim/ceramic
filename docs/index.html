@@ -14,8 +14,6 @@
     padding: 3rem 1.5rem;
   }
   header { text-align: center; margin-bottom: 3rem; }
-  h1 { font-weight: normal; font-size: 1.8rem; letter-spacing: .2em; }
-  header p { margin-top: .5rem; font-size: .85rem; color: #9a938a; letter-spacing: .1em; }
   .grid {
     max-width: 1100px; margin: 0 auto;
     display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -32,8 +30,10 @@
 </head>
 <body>
 <header>
-  <h1>CERAMIC</h1>
-  <p>concept designs</p>
+  <svg width="56" height="56" viewBox="0 0 56 56" aria-label="Ceramic">
+    <rect x="4" y="16" width="36" height="36" fill="none" stroke="#3d3833" stroke-width="2.5"/>
+    <circle cx="36" cy="20" r="16" fill="#faf7f2" stroke="#3d3833" stroke-width="2.5"/>
+  </svg>
 </header>
 <div class="grid" id="grid"></div>
 <dialog id="viewer"><img id="viewerImg" alt=""></dialog>

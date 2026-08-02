@@ -69,33 +69,55 @@
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
+let n = 0;  // 실제 이미지 수. 2장 이상이면 양 끝에 복제본을 둬서 순환시킨다.
+
+const slide = (src, alt) => {
+  // 확대용은 lazy 금지 — 화면 밖 슬라이드가 로드되지 않아 넘기면 빈 화면이 된다.
+  // 전부 합쳐 1MB대라 미리 받아도 부담 없고, 썸네일과 같은 파일이라 캐시를 공유한다.
+  const div = document.createElement('div');
+  const img = new Image();
+  img.src = src; img.alt = alt;
+  div.appendChild(img);
+  return div;
+};
+const srcOf = name => 'images/' + name;
+const altOf = name => name.split('?')[0].replace('.png', '');
 
 fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
   const grid = document.getElementById('grid');
-  names.forEach((name, i) => {
-    const src = 'images/' + name;
-    const alt = name.split('?')[0].replace('.png', '');
+  n = names.length;
 
+  names.forEach((name, i) => {
     const thumb = new Image();
-    thumb.src = src; thumb.alt = alt; thumb.loading = 'lazy';
+    thumb.src = srcOf(name); thumb.alt = altOf(name); thumb.loading = 'lazy';
     thumb.onclick = () => openAt(i);
     grid.appendChild(thumb);
-
-    // 확대용은 lazy 금지 — 화면 밖 슬라이드가 로드되지 않아 넘기면 빈 화면이 된다.
-    // 전부 합쳐 1MB대라 미리 받아도 부담 없고, 썸네일과 같은 파일이라 캐시를 공유한다.
-    const slide = document.createElement('div');
-    const big = new Image();
-    big.src = src; big.alt = alt;
-    slide.appendChild(big);
-    track.appendChild(slide);
   });
+
+  // 트랙 순서: [마지막 복제] 1 2 … N [첫 장 복제]
+  const order = n > 1 ? [names[n - 1], ...names, names[0]] : names;
+  for (const name of order) track.appendChild(slide(srcOf(name), altOf(name)));
 });
+
+const offset = () => (n > 1 ? 1 : 0);  // 복제본 때문에 실제 i는 한 칸 밀린다
 
 // showModal 먼저 해야 트랙에 폭이 잡혀서 scrollLeft 계산이 맞는다.
 function openAt(i) {
   viewer.showModal();
-  track.scrollLeft = i * track.clientWidth;
+  track.scrollLeft = (i + offset()) * track.clientWidth;
 }
+
+// 복제본에 멈췄으면 반대쪽 진짜 장으로 순간이동. 스크롤이 멎은 뒤에만 손대야
+// 관성 스크롤 중에 튀지 않는다. (scrollend는 사파리 지원이 늦어 타이머로 대신함)
+function wrap() {
+  const w = track.clientWidth;
+  if (!viewer.open || !w || n < 2) return;
+  const k = Math.round(track.scrollLeft / w);
+  if (k === 0) track.scrollLeft = n * w;            // 왼쪽 복제(=마지막) → 진짜 마지막
+  else if (k === n + 1) track.scrollLeft = w;       // 오른쪽 복제(=첫 장) → 진짜 첫 장
+}
+let settle;
+track.onscroll = () => { clearTimeout(settle); settle = setTimeout(wrap, 120); };
 
 track.onclick = () => viewer.close();
 // 키보드는 즉시 이동. scroll-snap 컨테이너에서는 smooth 스크롤이 아예 동작하지 않는다

@@ -40,12 +40,19 @@
     overflow: hidden; overscroll-behavior: contain;
   }
   dialog::backdrop { background: rgba(30,25,20,.85); }
-  /* 이전·현재·다음 3장을 가로로 두고 트랙을 밀어서 넘긴다 */
-  #track { display: flex; width: 100%; height: 100%; touch-action: pan-y; user-select: none; }
-  #track > div { flex: 0 0 100%; display: flex; align-items: center; justify-content: center; }
+  /* 전체 이미지를 가로로 늘어놓고 브라우저 기본 스크롤 스냅으로 넘긴다.
+     손가락 따라오기·관성·스냅이 전부 네이티브라 직접 만든 드래그보다 부드럽다. */
+  #track {
+    display: flex; width: 100%; height: 100%;
+    overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory; overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  #track::-webkit-scrollbar { display: none; }
+  #track > div { flex: 0 0 100%; scroll-snap-align: center;
+    display: flex; align-items: center; justify-content: center; }
   #track img { max-width: 92vw; max-height: 92dvh; display: block; cursor: zoom-out;
-    border-radius: 14px; border-top-right-radius: 0;
-    -webkit-user-drag: none; /* 마우스로 끌 때 브라우저 기본 이미지 드래그가 가로채지 않게 */ }
+    border-radius: 14px; border-top-right-radius: 0; }
 </style>
 </head>
 <body>
@@ -57,98 +64,47 @@
   </svg>
 </header>
 <div class="grid" id="grid"></div>
-<dialog id="viewer">
-  <div id="track"><div><img alt=""></div><div><img alt=""></div><div><img alt=""></div></div>
-</dialog>
+<dialog id="viewer"><div id="track"></div></dialog>
 <footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026</footer>
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
-const slides = [...track.querySelectorAll('img')];  // [이전, 현재, 다음]
-let srcs = [], alts = [], idx = 0, pending = 0;
-
-const at = i => (i + srcs.length) % srcs.length;
-
-// 3장을 채우고 트랙을 가운데(-100%)로 되돌린다. 애니메이션 없이 즉시.
-function render() {
-  slides.forEach((img, k) => { const j = at(idx + k - 1); img.src = srcs[j]; img.alt = alts[j]; });
-  track.style.transition = 'none';
-  track.style.transform = 'translateX(-100%)';
-}
-
-// dir: -1 이전 / +1 다음 / 0 제자리 복귀. 애니메이션이 끝난 뒤에 idx를 확정한다.
-function slideTo(dir) {
-  if (pending) return;
-  pending = dir;
-  track.style.transition = 'transform .25s ease-out';
-  track.style.transform = `translateX(${-100 - dir * 100}%)`;
-}
-track.addEventListener('transitionend', () => {
-  if (!pending) return;
-  idx = at(idx + pending);
-  pending = 0;
-  render();
-});
 
 fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
   const grid = document.getElementById('grid');
-  srcs = names.map(n => 'images/' + n);
-  alts = names.map(n => n.split('?')[0].replace('.png', ''));
   names.forEach((name, i) => {
-    const img = new Image();
-    img.src = srcs[i];
-    img.alt = alts[i];
-    img.loading = 'lazy';
-    img.onclick = () => { idx = i; render(); viewer.showModal(); };
-    grid.appendChild(img);
+    const src = 'images/' + name;
+    const alt = name.split('?')[0].replace('.png', '');
+
+    const thumb = new Image();
+    thumb.src = src; thumb.alt = alt; thumb.loading = 'lazy';
+    thumb.onclick = () => openAt(i);
+    grid.appendChild(thumb);
+
+    // 확대용은 lazy 금지 — 화면 밖 슬라이드가 로드되지 않아 넘기면 빈 화면이 된다.
+    // 전부 합쳐 1MB대라 미리 받아도 부담 없고, 썸네일과 같은 파일이라 캐시를 공유한다.
+    const slide = document.createElement('div');
+    const big = new Image();
+    big.src = src; big.alt = alt;
+    slide.appendChild(big);
+    track.appendChild(slide);
   });
 });
 
-viewer.onclick = () => { if (!dragging) viewer.close(); dragging = false; };
+// showModal 먼저 해야 트랙에 폭이 잡혀서 scrollLeft 계산이 맞는다.
+function openAt(i) {
+  viewer.showModal();
+  track.scrollLeft = i * track.clientWidth;
+}
+
+track.onclick = () => viewer.close();
+// 키보드는 즉시 이동. scroll-snap 컨테이너에서는 smooth 스크롤이 아예 동작하지 않는다
+// (scrollBy의 behavior 옵션도, CSS scroll-behavior도). 스와이프는 네이티브라 부드럽다.
 document.onkeydown = e => {
   if (!viewer.open) return;
-  if (e.key === 'ArrowLeft') slideTo(-1);
-  if (e.key === 'ArrowRight') slideTo(1);
+  const dir = {ArrowLeft: -1, ArrowRight: 1}[e.key];
+  if (dir) track.scrollBy({left: dir * track.clientWidth});
 };
-
-// 드래그: 손가락/마우스를 그대로 따라가고, 놓을 때 화면 1/5 이상 넘겼으면 이동, 아니면 제자리.
-// 포인터 이벤트라 터치·마우스가 한 코드로 처리된다.
-let x0 = 0, y0 = 0, dx = 0, down = false, dragging = false;
-track.addEventListener('pointerdown', e => {
-  if (pending || e.button) return;
-  down = true; dragging = false; dx = 0;
-  x0 = e.clientX; y0 = e.clientY;
-  track.style.transition = 'none';
-});
-track.addEventListener('pointermove', e => {
-  if (!down || pending) return;
-  dx = e.clientX - x0;
-  if (!dragging && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(e.clientY - y0)) {
-    dragging = true;
-    track.setPointerCapture(e.pointerId);
-  }
-  if (dragging) track.style.transform = `translateX(calc(-100% + ${dx}px))`;
-});
-const endDrag = () => {
-  if (!down) return;
-  down = false;
-  if (dragging) slideTo(Math.abs(dx) > innerWidth / 5 ? (dx < 0 ? 1 : -1) : 0);
-};
-track.addEventListener('pointerup', endDrag);
-track.addEventListener('pointercancel', endDrag);
-
-// 트랙패드 두 손가락 가로 스와이프. 관성 스크롤이 계속 이벤트를 뿜으므로
-// 한 제스처당 한 번만 넘기도록 잠갔다가, 이벤트가 200ms 멎으면 푼다.
-let wheelLock = false, wheelTimer = 0;
-track.addEventListener('wheel', e => {
-  if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
-  e.preventDefault();
-  clearTimeout(wheelTimer);
-  wheelTimer = setTimeout(() => { wheelLock = false; }, 200);
-  if (wheelLock || Math.abs(e.deltaX) < 20) return;
-  wheelLock = true;
-  slideTo(e.deltaX > 0 ? 1 : -1);
-}, {passive: false});
 </script>
 </body>
 </html>

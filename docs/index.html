@@ -36,15 +36,6 @@
   dialog img { max-width: 92vw; max-height: 92vh; display: block; cursor: zoom-out;
     border-radius: 14px; border-top-right-radius: 0; }
   dialog::backdrop { background: rgba(30,25,20,.85); }
-  dialog button {
-    position: fixed; top: 50%; transform: translateY(-50%);
-    border: none; background: none; cursor: pointer;
-    color: #ededed; font: 300 2.6rem/1 "Helvetica Neue", sans-serif;
-    padding: 1rem 1.2rem; opacity: .55;
-  }
-  dialog button:hover { opacity: 1; }
-  #prev { left: 0; }
-  #next { right: 0; }
 </style>
 </head>
 <body>
@@ -56,11 +47,7 @@
   </svg>
 </header>
 <div class="grid" id="grid"></div>
-<dialog id="viewer">
-  <img id="viewerImg" alt="">
-  <button id="prev" aria-label="이전">‹</button>
-  <button id="next" aria-label="다음">›</button>
-</dialog>
+<dialog id="viewer"><img id="viewerImg" alt=""></dialog>
 <footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026</footer>
 <script>
 const viewer = document.getElementById('viewer');
@@ -83,14 +70,22 @@ fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
   });
 });
 
-viewer.onclick = e => { if (e.target === viewer || e.target === viewerImg) viewer.close(); };
-document.getElementById('prev').onclick = () => show(idx - 1);
-document.getElementById('next').onclick = () => show(idx + 1);
+viewer.onclick = () => { if (!swiped) viewer.close(); swiped = false; };
 document.onkeydown = e => {
   if (!viewer.open) return;
   if (e.key === 'ArrowLeft') show(idx - 1);
   if (e.key === 'ArrowRight') show(idx + 1);
 };
+
+// 스와이프: 가로 이동이 40px 넘고 세로보다 크면 넘기기 (터치 후 뒤따르는 click은 무시)
+let tx = 0, ty = 0, swiped = false;
+viewer.addEventListener('touchstart', e => {
+  tx = e.changedTouches[0].clientX; ty = e.changedTouches[0].clientY; swiped = false;
+}, {passive: true});
+viewer.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; show(idx + (dx < 0 ? 1 : -1)); }
+}, {passive: true});
 </script>
 </body>
 </html>

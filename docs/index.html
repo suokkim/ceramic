@@ -109,17 +109,33 @@ fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
 
 const offset = () => (n > 1 ? 1 : 0);  // 복제본 때문에 실제 i는 한 칸 밀린다
 
+// 사파리는 다이얼로그가 열린 직후 스냅을 다시 계산하면서 위치를 0으로 되돌릴 때가 있다.
+// 그러면 wrap()이 슬롯 0을 보고 마지막 장으로 보내버려 엉뚱한 이미지가 뜬다.
+// 그래서 사용자가 트랙을 처음 만지기 전까지는 목표 슬롯을 고수한다 (타이머가 아니라
+// "사용자가 손댔는가"가 기준이라 기기·속도와 무관하게 동작한다).
+let goal = null;
+
 // showModal 먼저 해야 트랙에 폭이 잡혀서 scrollLeft 계산이 맞는다.
 function openAt(i) {
   viewer.showModal();
-  track.scrollLeft = (i + offset()) * track.clientWidth;
+  goal = i + offset();
+  hold();
+  requestAnimationFrame(hold);
 }
+function hold() {
+  if (goal === null) return;
+  const to = goal * track.clientWidth;
+  if (track.scrollLeft !== to) track.scrollLeft = to;
+}
+const release = () => { goal = null; };   // 사용자가 손대는 순간부터는 자유롭게
+for (const ev of ['pointerdown', 'touchstart', 'wheel']) track.addEventListener(ev, release, {passive: true});
 
 // 복제본에 멈췄으면 반대쪽 진짜 장으로 순간이동. 스크롤이 멎은 뒤에만 손대야
 // 관성 스크롤 중에 튀지 않는다. (scrollend는 사파리 지원이 늦어 타이머로 대신함)
 function wrap(tries) {
   const w = track.clientWidth;
   if (!viewer.open || !w || n < 2) return;
+  if (goal !== null) return hold();   // 아직 사용자가 안 만졌다 = 브라우저가 흔든 것, 되돌린다
   const k = Math.round(track.scrollLeft / w);
   const to = k === 0 ? n * w          // 왼쪽 복제(=마지막) → 진짜 마지막
            : k === n + 1 ? w          // 오른쪽 복제(=첫 장) → 진짜 첫 장
@@ -146,7 +162,7 @@ track.onclick = () => viewer.close();
 document.onkeydown = e => {
   if (!viewer.open) return;
   const dir = {ArrowLeft: -1, ArrowRight: 1}[e.key];
-  if (dir) track.scrollBy({left: dir * track.clientWidth});
+  if (dir) { release(); track.scrollBy({left: dir * track.clientWidth}); }
 };
 </script>
 </body>

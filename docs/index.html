@@ -32,10 +32,19 @@
     font-weight: 300;
     font-size: .68rem; color: #ededed; letter-spacing: .14em;
   }
-  dialog { border: none; outline: none; padding: 0; margin: auto; background: transparent; max-width: 92vw; max-height: 92vh; }
-  dialog img { max-width: 92vw; max-height: 92vh; display: block; cursor: zoom-out;
-    border-radius: 14px; border-top-right-radius: 0; }
+  /* 확대 보기: 화면 전체를 덮고, 열려 있는 동안 뒤 페이지는 스크롤 잠금 */
+  html:has(dialog[open]) { overflow: hidden; }
+  dialog {
+    border: none; outline: none; padding: 0; margin: 0; background: transparent;
+    width: 100vw; height: 100dvh; max-width: none; max-height: none;
+    overflow: hidden; overscroll-behavior: contain;
+  }
   dialog::backdrop { background: rgba(30,25,20,.85); }
+  /* 이전·현재·다음 3장을 가로로 두고 트랙을 밀어서 넘긴다 */
+  #track { display: flex; width: 100%; height: 100%; touch-action: pan-y; }
+  #track > div { flex: 0 0 100%; display: flex; align-items: center; justify-content: center; }
+  #track img { max-width: 92vw; max-height: 92dvh; display: block; cursor: zoom-out;
+    border-radius: 14px; border-top-right-radius: 0; }
 </style>
 </head>
 <body>
@@ -47,44 +56,76 @@
   </svg>
 </header>
 <div class="grid" id="grid"></div>
-<dialog id="viewer"><img id="viewerImg" alt=""></dialog>
+<dialog id="viewer">
+  <div id="track"><div><img alt=""></div><div><img alt=""></div><div><img alt=""></div></div>
+</dialog>
 <footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026</footer>
 <script>
 const viewer = document.getElementById('viewer');
-const viewerImg = document.getElementById('viewerImg');
-let srcs = [], idx = 0;
+const track = document.getElementById('track');
+const slides = [...track.querySelectorAll('img')];  // [이전, 현재, 다음]
+let srcs = [], alts = [], idx = 0, pending = 0;
 
-// 역순 정렬된 목록 그대로 ‹ = 이전(왼쪽) 항목, › = 다음(오른쪽) 항목. 양 끝에서 순환.
-const show = i => { idx = (i + srcs.length) % srcs.length; viewerImg.src = srcs[idx]; };
+const at = i => (i + srcs.length) % srcs.length;
+
+// 3장을 채우고 트랙을 가운데(-100%)로 되돌린다. 애니메이션 없이 즉시.
+function render() {
+  slides.forEach((img, k) => { const j = at(idx + k - 1); img.src = srcs[j]; img.alt = alts[j]; });
+  track.style.transition = 'none';
+  track.style.transform = 'translateX(-100%)';
+}
+
+// dir: -1 이전 / +1 다음 / 0 제자리 복귀. 애니메이션이 끝난 뒤에 idx를 확정한다.
+function slideTo(dir) {
+  if (pending) return;
+  pending = dir;
+  track.style.transition = 'transform .25s ease-out';
+  track.style.transform = `translateX(${-100 - dir * 100}%)`;
+}
+track.addEventListener('transitionend', () => {
+  if (!pending) return;
+  idx = at(idx + pending);
+  pending = 0;
+  render();
+});
 
 fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
   const grid = document.getElementById('grid');
   srcs = names.map(n => 'images/' + n);
+  alts = names.map(n => n.split('?')[0].replace('.png', ''));
   names.forEach((name, i) => {
     const img = new Image();
     img.src = srcs[i];
-    img.alt = name.split('?')[0].replace('.png', '');
+    img.alt = alts[i];
     img.loading = 'lazy';
-    img.onclick = () => { show(i); viewer.showModal(); };
+    img.onclick = () => { idx = i; render(); viewer.showModal(); };
     grid.appendChild(img);
   });
 });
 
-viewer.onclick = () => { if (!swiped) viewer.close(); swiped = false; };
+viewer.onclick = () => { if (!dragging) viewer.close(); dragging = false; };
 document.onkeydown = e => {
   if (!viewer.open) return;
-  if (e.key === 'ArrowLeft') show(idx - 1);
-  if (e.key === 'ArrowRight') show(idx + 1);
+  if (e.key === 'ArrowLeft') slideTo(-1);
+  if (e.key === 'ArrowRight') slideTo(1);
 };
 
-// 스와이프: 가로 이동이 40px 넘고 세로보다 크면 넘기기 (터치 후 뒤따르는 click은 무시)
-let tx = 0, ty = 0, swiped = false;
-viewer.addEventListener('touchstart', e => {
-  tx = e.changedTouches[0].clientX; ty = e.changedTouches[0].clientY; swiped = false;
+// 드래그: 손가락을 그대로 따라가고, 놓을 때 화면 1/5 이상 넘겼으면 이동, 아니면 제자리.
+let x0 = 0, y0 = 0, dx = 0, dragging = false;
+track.addEventListener('touchstart', e => {
+  if (pending) return;
+  x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; dragging = false;
+  track.style.transition = 'none';
 }, {passive: true});
-viewer.addEventListener('touchend', e => {
-  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
-  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; show(idx + (dx < 0 ? 1 : -1)); }
+track.addEventListener('touchmove', e => {
+  if (pending) return;
+  dx = e.touches[0].clientX - x0;
+  if (!dragging && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(e.touches[0].clientY - y0)) dragging = true;
+  if (dragging) { e.preventDefault(); track.style.transform = `translateX(calc(-100% + ${dx}px))`; }
+}, {passive: false});
+track.addEventListener('touchend', () => {
+  if (!dragging) return;
+  slideTo(Math.abs(dx) > innerWidth / 5 ? (dx < 0 ? 1 : -1) : 0);
 }, {passive: true});
 </script>
 </body>

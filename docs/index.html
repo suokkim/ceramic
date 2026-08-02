@@ -50,7 +50,7 @@
 <dialog id="viewer"><img id="viewerImg" alt=""></dialog>
 <footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026</footer>
 <script>
-fetch('images.json').then(r => r.json()).then(names => {
+fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
   const grid = document.getElementById('grid');
   for (const name of names) {
     const img = new Image();

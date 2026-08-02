@@ -41,10 +41,11 @@
   }
   dialog::backdrop { background: rgba(30,25,20,.85); }
   /* 이전·현재·다음 3장을 가로로 두고 트랙을 밀어서 넘긴다 */
-  #track { display: flex; width: 100%; height: 100%; touch-action: pan-y; }
+  #track { display: flex; width: 100%; height: 100%; touch-action: pan-y; user-select: none; }
   #track > div { flex: 0 0 100%; display: flex; align-items: center; justify-content: center; }
   #track img { max-width: 92vw; max-height: 92dvh; display: block; cursor: zoom-out;
-    border-radius: 14px; border-top-right-radius: 0; }
+    border-radius: 14px; border-top-right-radius: 0;
+    -webkit-user-drag: none; /* 마우스로 끌 때 브라우저 기본 이미지 드래그가 가로채지 않게 */ }
 </style>
 </head>
 <body>
@@ -110,23 +111,44 @@ document.onkeydown = e => {
   if (e.key === 'ArrowRight') slideTo(1);
 };
 
-// 드래그: 손가락을 그대로 따라가고, 놓을 때 화면 1/5 이상 넘겼으면 이동, 아니면 제자리.
-let x0 = 0, y0 = 0, dx = 0, dragging = false;
-track.addEventListener('touchstart', e => {
-  if (pending) return;
-  x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; dragging = false;
+// 드래그: 손가락/마우스를 그대로 따라가고, 놓을 때 화면 1/5 이상 넘겼으면 이동, 아니면 제자리.
+// 포인터 이벤트라 터치·마우스가 한 코드로 처리된다.
+let x0 = 0, y0 = 0, dx = 0, down = false, dragging = false;
+track.addEventListener('pointerdown', e => {
+  if (pending || e.button) return;
+  down = true; dragging = false; dx = 0;
+  x0 = e.clientX; y0 = e.clientY;
   track.style.transition = 'none';
-}, {passive: true});
-track.addEventListener('touchmove', e => {
-  if (pending) return;
-  dx = e.touches[0].clientX - x0;
-  if (!dragging && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(e.touches[0].clientY - y0)) dragging = true;
-  if (dragging) { e.preventDefault(); track.style.transform = `translateX(calc(-100% + ${dx}px))`; }
+});
+track.addEventListener('pointermove', e => {
+  if (!down || pending) return;
+  dx = e.clientX - x0;
+  if (!dragging && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(e.clientY - y0)) {
+    dragging = true;
+    track.setPointerCapture(e.pointerId);
+  }
+  if (dragging) track.style.transform = `translateX(calc(-100% + ${dx}px))`;
+});
+const endDrag = () => {
+  if (!down) return;
+  down = false;
+  if (dragging) slideTo(Math.abs(dx) > innerWidth / 5 ? (dx < 0 ? 1 : -1) : 0);
+};
+track.addEventListener('pointerup', endDrag);
+track.addEventListener('pointercancel', endDrag);
+
+// 트랙패드 두 손가락 가로 스와이프. 관성 스크롤이 계속 이벤트를 뿜으므로
+// 한 제스처당 한 번만 넘기도록 잠갔다가, 이벤트가 200ms 멎으면 푼다.
+let wheelLock = false, wheelTimer = 0;
+track.addEventListener('wheel', e => {
+  if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
+  e.preventDefault();
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(() => { wheelLock = false; }, 200);
+  if (wheelLock || Math.abs(e.deltaX) < 20) return;
+  wheelLock = true;
+  slideTo(e.deltaX > 0 ? 1 : -1);
 }, {passive: false});
-track.addEventListener('touchend', () => {
-  if (!dragging) return;
-  slideTo(Math.abs(dx) > innerWidth / 5 ? (dx < 0 ? 1 : -1) : 0);
-}, {passive: true});
 </script>
 </body>
 </html>

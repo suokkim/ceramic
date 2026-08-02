@@ -24,6 +24,13 @@ for f in png/*.png; do
   cp "$f" "$out"
   sips -Z 1600 "$out" >/dev/null
 done
-# 최근 작업(큰 번호)이 먼저 보이도록 역순 정렬
-python3 -c 'import json,glob,os;print(json.dumps(sorted((os.path.basename(p) for p in glob.glob("docs/images/*.png")),reverse=True),ensure_ascii=False))' > docs/images.json
+# 최근 작업(큰 번호)이 먼저 보이도록 역순 정렬, 파일 해시를 ?v=로 붙여 수정 시 캐시 자동 무효화
+python3 -c '
+import json, glob, os, hashlib
+entries = []
+for p in sorted(glob.glob("docs/images/*.png"), reverse=True):
+    h = hashlib.md5(open(p, "rb").read()).hexdigest()[:8]
+    entries.append(os.path.basename(p) + "?v=" + h)
+print(json.dumps(entries, ensure_ascii=False))
+' > docs/images.json
 echo "완료: $(ls docs/images | wc -l | tr -d ' ')개 이미지"

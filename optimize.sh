@@ -11,8 +11,10 @@ for f in png/*.png; do
   base=$(basename "$f")
   case "$base" in
     [0-9][0-9]_*) ;;
-    *) mv "$f" "png/$(printf '%02d' "$next")_$base"
-       echo "넘버링 추가: $base → $(printf '%02d' "$next")_$base"
+    # Krita가 붙이는 0802_ 같은 날짜 접두어는 떼고 번호를 준다 (05_0802_이름.png 방지)
+    *) new="$(printf '%02d' "$next")_$(printf '%s' "$base" | sed 's/^[0-9][0-9]*_//')"
+       mv "$f" "png/$new"
+       echo "넘버링 추가: $base → $new"
        next=$((next+1)) ;;
   esac
 done
@@ -33,4 +35,9 @@ for p in sorted(glob.glob("docs/images/*.png"), reverse=True):
     entries.append(os.path.basename(p) + "?v=" + h)
 print(json.dumps(entries, ensure_ascii=False))
 ' > docs/images.json
-echo "완료: $(ls docs/images | wc -l | tr -d ' ')개 이미지"
+
+# 링크 공유 미리보기 이미지를 최신 작품(가장 큰 번호)으로 갱신
+newest=$(ls docs/images | sort | tail -1)
+sed -i '' "s|\(og:image\" content=\"https://suokkim.github.io/ceramic/images/\)[^\"]*|\1$newest|" docs/index.html
+
+echo "완료: $(ls docs/images | wc -l | tr -d ' ')개 이미지, 공유 이미지: $newest"

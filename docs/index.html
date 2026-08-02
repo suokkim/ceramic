@@ -158,8 +158,9 @@ for (const ev of ['pointerdown', 'touchstart', 'wheel']) track.addEventListener(
 
 // 복제본에 멈췄으면 반대쪽 진짜 장으로 순간이동. 스크롤이 멎은 뒤에만 손대야
 // 관성 스크롤 중에 튀지 않는다. (scrollend는 사파리 지원이 늦어 타이머로 대신함)
+let jumping = false;   // 순간이동 중 재진입 금지 (스크롤↔스냅복원 무한루프 방지)
 function wrap(tries) {
-  if (!viewer.open || !track.clientWidth || n < 2) return;
+  if (jumping || !viewer.open || !track.clientWidth || n < 2) return;
   if (goal !== null) return hold();   // 아직 사용자가 안 만졌다 = 브라우저가 흔든 것, 되돌린다
   const k = slotNow();
   // 복제본이면 반대편 진짜 장으로, 아니면 제자리를 다시 정확히 맞춘다. 후자가 있어야
@@ -167,8 +168,19 @@ function wrap(tries) {
   const to = k === 0 ? n              // 왼쪽 복제(=마지막) → 진짜 마지막
            : k === n + 1 ? 1          // 오른쪽 복제(=첫 장) → 진짜 첫 장
            : k;
+  if (to === k) { goToSlot(to); return; }   // 정렬만 한 경우
+
+  // 사파리는 스냅이 mandatory인 동안 프로그램 스크롤을 스냅으로 되돌려버린다. 그래서 끝
+  // 복제본에서 순간이동이 무시되고, 그 자리는 더 스크롤할 곳이 없어 그대로 갇힌다.
+  // 순간이동 동안만 스냅을 끄고, 다음 프레임에 되돌린다.
+  jumping = true;
+  track.style.scrollSnapType = 'none';
   goToSlot(to);
-  if (to === k) return;               // 정렬만 한 경우는 재시도 불필요
+  // 되돌리기는 rAF와 타이머 둘 다 걸어둔다 — 어느 쪽이 안 돌아도 스냅이 꺼진 채로,
+  // 또는 jumping이 켜진 채로 영구히 멈추지 않게. 두 번 실행돼도 무해하다.
+  const restore = () => { track.style.scrollSnapType = ''; jumping = false; };
+  requestAnimationFrame(restore);
+  setTimeout(restore, 120);
   // 사파리는 관성·고무줄 스크롤 중 scrollLeft 변경을 무시할 때가 있다. 실패한 채 끝
   // 복제본에 남으면 더 스크롤할 곳이 없어 scroll 이벤트도 안 나고 = 영구히 갇힌다.
   // 먹을 때까지 다시 시도해야 하는 이유.

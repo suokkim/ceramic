@@ -117,15 +117,28 @@ function openAt(i) {
 
 // 복제본에 멈췄으면 반대쪽 진짜 장으로 순간이동. 스크롤이 멎은 뒤에만 손대야
 // 관성 스크롤 중에 튀지 않는다. (scrollend는 사파리 지원이 늦어 타이머로 대신함)
-function wrap() {
+function wrap(tries) {
   const w = track.clientWidth;
   if (!viewer.open || !w || n < 2) return;
   const k = Math.round(track.scrollLeft / w);
-  if (k === 0) track.scrollLeft = n * w;            // 왼쪽 복제(=마지막) → 진짜 마지막
-  else if (k === n + 1) track.scrollLeft = w;       // 오른쪽 복제(=첫 장) → 진짜 첫 장
+  const to = k === 0 ? n * w          // 왼쪽 복제(=마지막) → 진짜 마지막
+           : k === n + 1 ? w          // 오른쪽 복제(=첫 장) → 진짜 첫 장
+           : -1;
+  if (to < 0) return;
+  track.scrollLeft = to;
+  // 사파리는 관성·고무줄 스크롤 중 scrollLeft 변경을 무시할 때가 있다. 실패한 채 끝
+  // 복제본에 남으면 더 스크롤할 곳이 없어 scroll 이벤트도 안 나고 = 영구히 갇힌다.
+  // 먹을 때까지 다시 시도해야 하는 이유.
+  if (Math.round(track.scrollLeft / w) !== Math.round(to / w) && (tries || 0) < 10)
+    setTimeout(() => wrap((tries || 0) + 1), 100);
 }
 let settle;
-track.onscroll = () => { clearTimeout(settle); settle = setTimeout(wrap, 120); };
+const checkWrap = () => { clearTimeout(settle); settle = setTimeout(wrap, 150); };
+track.onscroll = checkWrap;
+// 끝에 갇히면 스크롤이 아예 안 일어나 scroll 이벤트도 없다. 손을 뗄 때마다 한 번 더
+// 확인해서, 사용자가 계속 밀면 반드시 빠져나오게 한다.
+track.addEventListener('touchend', checkWrap);
+track.addEventListener('pointerup', checkWrap);
 
 track.onclick = () => viewer.close();
 // 키보드는 즉시 이동. scroll-snap 컨테이너에서는 smooth 스크롤이 아예 동작하지 않는다

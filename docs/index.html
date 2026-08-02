@@ -42,9 +42,11 @@
   }
   /* 확대 보기: 화면 전체를 덮고, 열려 있는 동안 뒤 페이지는 스크롤 잠금 */
   html:has(dialog[open]) { overflow: hidden; }
+  /* vw/dvh 대신 fixed+inset — iOS에서 100vw가 실제 보이는 폭보다 넓게 잡혀
+     트랙이 화면을 넘치고 이미지가 한쪽으로 쏠리는 것을 막는다 */
   dialog {
     border: none; outline: none; padding: 0; margin: 0; background: transparent;
-    width: 100vw; height: 100dvh; max-width: none; max-height: none;
+    position: fixed; inset: 0; width: auto; height: auto; max-width: none; max-height: none;
     overflow: hidden; overscroll-behavior: contain;
   }
   dialog::backdrop { background: rgba(30,25,20,.85); }
@@ -59,7 +61,8 @@
   #track::-webkit-scrollbar { display: none; }
   #track > div { flex: 0 0 100%; scroll-snap-align: center;
     display: flex; align-items: center; justify-content: center; }
-  #track img { max-width: 92vw; max-height: 92dvh; display: block; cursor: zoom-out;
+  /* 슬라이드 기준 %라서 뷰포트 단위 오차를 타지 않는다 */
+  #track img { max-width: 92%; max-height: 92%; display: block; cursor: zoom-out;
     border-radius: 14px; border-top-right-radius: 0; }
 </style>
 </head>
@@ -122,7 +125,12 @@ const gap = k => {
   const el = track.children[k];
   return el ? el.getBoundingClientRect().left - track.getBoundingClientRect().left : 0;
 };
-const goToSlot = k => { if (track.children[k]) track.scrollLeft += gap(k); };
+// 스크롤 위치는 엔진에 맡긴다. 직접 더하면 소수점·기기픽셀 반올림이 남아서 이미지가
+// 스냅 지점에 정확히 안 붙고 한쪽으로 쏠린 채 멈춘다.
+const goToSlot = k => {
+  const el = track.children[k];
+  if (el) el.scrollIntoView({inline: 'center', block: 'nearest'});
+};
 const slotNow = () => {
   let best = 0, bestD = Infinity;
   for (let k = 0; k < track.children.length; k++) {
@@ -154,11 +162,13 @@ function wrap(tries) {
   if (!viewer.open || !track.clientWidth || n < 2) return;
   if (goal !== null) return hold();   // 아직 사용자가 안 만졌다 = 브라우저가 흔든 것, 되돌린다
   const k = slotNow();
+  // 복제본이면 반대편 진짜 장으로, 아니면 제자리를 다시 정확히 맞춘다. 후자가 있어야
+  // 스냅에 덜 붙어 한쪽으로 쏠린 채 멈추는 것까지 매번 교정된다.
   const to = k === 0 ? n              // 왼쪽 복제(=마지막) → 진짜 마지막
            : k === n + 1 ? 1          // 오른쪽 복제(=첫 장) → 진짜 첫 장
-           : -1;
-  if (to < 0) return;
+           : k;
   goToSlot(to);
+  if (to === k) return;               // 정렬만 한 경우는 재시도 불필요
   // 사파리는 관성·고무줄 스크롤 중 scrollLeft 변경을 무시할 때가 있다. 실패한 채 끝
   // 복제본에 남으면 더 스크롤할 곳이 없어 scroll 이벤트도 안 나고 = 영구히 갇힌다.
   // 먹을 때까지 다시 시도해야 하는 이유.

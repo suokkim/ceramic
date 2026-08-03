@@ -25,10 +25,13 @@
   header { max-width: 1100px; margin: 0 auto 3rem;
     display: flex; justify-content: space-between; align-items: flex-end; }
   #gridToggle {
-    border: none; background: none; cursor: pointer; padding: 0;
-    font-family: "Helvetica Neue", "Apple SD Gothic Neo", "Pretendard", sans-serif;
-    font-weight: 300; font-size: .72rem; letter-spacing: .1em; color: #8f8a84;
+    border: none; background: none; cursor: pointer; padding: 4px;
+    color: #8f8a84; line-height: 0;
   }
+  #gridToggle:hover { color: #5c5751; }
+  /* 아이콘 두 개를 넣어두고 상태(aria-pressed)에 따라 하나만 보여준다 */
+  #gridToggle[aria-pressed="false"] .ico-big,
+  #gridToggle[aria-pressed="true"] .ico-grid { display: none; }
   .grid {
     max-width: 1100px; margin: 0 auto;
     display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -91,7 +94,18 @@
     <rect x="24" y="8" width="26" height="26" fill="#3a3a3a"/>
     <circle cx="24" cy="30" r="16" fill="#b5b5b5"/>
   </svg>
-  <button id="gridToggle" aria-pressed="false">모아보기</button>
+  <button id="gridToggle" aria-pressed="false" aria-label="모아보기">
+    <!-- 모아보기: 3×3 사각 점 -->
+    <svg class="ico-grid" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+      <rect x="0" y="0" width="4" height="4"/><rect x="7" y="0" width="4" height="4"/><rect x="14" y="0" width="4" height="4"/>
+      <rect x="0" y="7" width="4" height="4"/><rect x="7" y="7" width="4" height="4"/><rect x="14" y="7" width="4" height="4"/>
+      <rect x="0" y="14" width="4" height="4"/><rect x="7" y="14" width="4" height="4"/><rect x="14" y="14" width="4" height="4"/>
+    </svg>
+    <!-- 크게 보기: 사각형 하나 (이미지 모서리처럼 2시 방향만 각지게) -->
+    <svg class="ico-big" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+      <path d="M18 0 v18 a0 0 0 0 1 0 0 h-14 a4 4 0 0 1 -4 -4 v-10 a4 4 0 0 1 4 -4 z"/>
+    </svg>
+  </button>
 </header>
 <div class="grid" id="grid"></div>
 <div id="viewer" role="dialog" aria-modal="true"><div id="track"></div></div>
@@ -250,11 +264,12 @@ track.addEventListener('wheel', e => {
   slideTo(e.deltaX > 0 ? 1 : -1);
 }, {passive: false});
 
-// 모아보기 토글
+// 모아보기 토글 (아이콘 전환은 CSS가 aria-pressed를 보고 처리)
 document.getElementById('gridToggle').onclick = e => {
   const on = document.getElementById('grid').classList.toggle('compact');
-  e.target.textContent = on ? '크게 보기' : '모아보기';
-  e.target.setAttribute('aria-pressed', on);
+  const btn = e.currentTarget;
+  btn.setAttribute('aria-pressed', on);
+  btn.setAttribute('aria-label', on ? '크게 보기' : '모아보기');
 };
 
 document.onkeydown = e => {

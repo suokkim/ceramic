@@ -51,6 +51,16 @@
     overflow: hidden; overscroll-behavior: contain;
   }
   dialog::backdrop { background: rgba(30,25,20,.85); }
+  /* 열릴 때: 배경은 잦아들듯, 이미지는 살짝 아래에서 떠오르듯.
+     transform은 img에만 건다 — 트랙·슬라이드에 걸면 좌표 계산(gap/scrollIntoView)이 틀어진다 */
+  dialog[open] { animation: fadeIn .22s ease-out; }
+  dialog[open]::backdrop { animation: fadeIn .22s ease-out; }
+  dialog[open] #track img { animation: rise .3s cubic-bezier(.2,.7,.3,1); }
+  @keyframes fadeIn { from { opacity: 0; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(16px) scale(.965); } }
+  @media (prefers-reduced-motion: reduce) {
+    dialog[open], dialog[open]::backdrop, dialog[open] #track img { animation: none; }
+  }
   /* 전체 이미지를 가로로 늘어놓고 브라우저 기본 스크롤 스냅으로 넘긴다.
      손가락 따라오기·관성·스냅이 전부 네이티브라 직접 만든 드래그보다 부드럽다. */
   #track {

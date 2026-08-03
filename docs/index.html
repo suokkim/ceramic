@@ -240,9 +240,12 @@ track.addEventListener('touchmove', e => {
   if (!tdrag && Math.abs(tdx) > 6 && Math.abs(tdx) > Math.abs(dy)) tdrag = true;
   if (tdrag) { e.preventDefault(); setX(tdx, false); }
 }, {passive: false});
+// 넘김 확정 기준: 화면 폭의 35% (데스크톱은 200px 상한). 낮으면 살짝만 밀어도
+// 홱 넘어가서 거슬린다 — 충분히 끌었을 때만 넘어가고 아니면 제자리 복귀.
+const THRESHOLD = () => Math.min(200, innerWidth * .35);
 track.addEventListener('touchend', () => {
   if (!tdrag) return;             // 탭은 click 핸들러가 닫기로 처리
-  slideTo(Math.abs(tdx) > Math.min(90, innerWidth / 5) ? (tdx < 0 ? 1 : -1) : 0);
+  slideTo(Math.abs(tdx) > THRESHOLD() ? (tdx < 0 ? 1 : -1) : 0);
 }, {passive: true});
 track.addEventListener('touchcancel', () => { if (tdrag) slideTo(0); }, {passive: true});
 
@@ -264,7 +267,7 @@ addEventListener('mousemove', e => {
 addEventListener('mouseup', () => {
   if (!mdown) return;
   mdown = false;
-  if (mdrag) slideTo(Math.abs(mdx) > Math.min(90, innerWidth / 5) ? (mdx < 0 ? 1 : -1) : 0);
+  if (mdrag) slideTo(Math.abs(mdx) > THRESHOLD() ? (mdx < 0 ? 1 : -1) : 0);
 });
 
 // 탭/클릭(드래그가 아니었을 때만) → 닫기

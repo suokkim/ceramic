@@ -40,7 +40,8 @@
     font-weight: 300;
     font-size: .68rem; color: #ededed; letter-spacing: .14em;
   }
-  /* 확대 보기: 화면 전체를 덮고, 열려 있는 동안 뒤 페이지는 스크롤 잠금 */
+  /* 확대 보기: 화면 전체를 덮고, 열려 있는 동안 뒤 페이지는 스크롤 잠금.
+     iOS는 overflow:hidden만으로 터치 스크롤이 안 막혀서 JS에서 body를 fixed로도 잠근다 */
   html:has(dialog[open]) { overflow: hidden; }
   /* vw/dvh 대신 fixed+inset — iOS에서 100vw가 실제 보이는 폭보다 넓게 잡혀
      트랙이 화면을 넘치고 이미지가 한쪽으로 쏠리는 것을 막는다 */
@@ -56,6 +57,7 @@
     display: flex; width: 100%; height: 100%;
     overflow-x: auto; overflow-y: hidden;
     scroll-snap-type: x mandatory; overscroll-behavior: contain;
+    touch-action: pan-x; /* 세로 성분이 뒤 페이지로 새어나가 제스처를 뺏기지 않게 */
     scrollbar-width: none;
   }
   #track::-webkit-scrollbar { display: none; }
@@ -160,8 +162,24 @@ const slotNow = () => {
   return best;
 };
 
+// iOS는 overflow:hidden으로 터치 스크롤이 안 막힌다. 열려 있는 동안 body를 fixed로
+// 못 박는 것이 유일하게 확실한 잠금. 닫을 때 스크롤 위치를 되돌린다.
+let pageY = 0;
+const lockPage = () => {
+  pageY = scrollY;
+  document.body.style.cssText = `position:fixed; top:${-pageY}px; left:0; right:0;`;
+};
+const unlockPage = () => {
+  document.body.style.cssText = '';
+  scrollTo(0, pageY);
+};
+// 닫기는 어떤 경로든 unlock을 거친다. close 이벤트 리스너는 Esc 등 나머지 경로용 보조.
+const closeViewer = () => { unlockPage(); viewer.close(); };
+viewer.addEventListener('close', unlockPage);
+
 // showModal 먼저 해야 트랙에 폭이 잡혀서 위치 계산이 맞는다.
 function openAt(i) {
+  lockPage();
   viewer.showModal();
   goal = i + offset();
   // goToSlot은 실제 좌표 차이만큼 더하므로 여러 번 불러도 안전하고, 어긋나 있으면 정확히
@@ -195,7 +213,7 @@ track.onscroll = checkRecenter;
 track.addEventListener('touchend', checkRecenter);
 track.addEventListener('pointerup', checkRecenter);
 
-track.onclick = () => viewer.close();
+track.onclick = () => closeViewer();
 // 키보드는 즉시 이동. scroll-snap 컨테이너에서는 smooth 스크롤이 아예 동작하지 않는다
 // (scrollBy의 behavior 옵션도, CSS scroll-behavior도). 스와이프는 네이티브라 부드럽다.
 document.onkeydown = e => {

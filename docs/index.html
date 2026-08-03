@@ -24,7 +24,9 @@
     /* 내용이 짧아도(모아보기 등) 푸터가 화면 위로 떠오르지 않게 최소 화면 높이 확보 */
     display: flex; flex-direction: column; min-height: 100dvh;
   }
-  header { max-width: 1100px; margin: 0 auto 3rem;
+  /* body가 플렉스라서 width:100%를 명시해야 한다 — 플렉스에서 margin:0 auto가 걸리면
+     stretch가 꺼져 내용물 크기로 쪼그라들고, 모바일에서 레이아웃이 통째로 무너진다 */
+  header { width: 100%; max-width: 1100px; margin: 0 auto 3rem;
     display: flex; justify-content: space-between; align-items: center; }
   #gridToggle {
     border: none; background: none; cursor: pointer; padding: 4px;
@@ -36,7 +38,7 @@
   #gridToggle[aria-pressed="false"] .ico-big,
   #gridToggle[aria-pressed="true"] .ico-grid { display: none; }
   .grid {
-    max-width: 1100px; margin: 0 auto;
+    width: 100%; max-width: 1100px; margin: 0 auto;
     display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 2rem;
   }

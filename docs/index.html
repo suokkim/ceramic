@@ -136,11 +136,20 @@ const gap = k => {
   const el = track.children[k];
   return el ? el.getBoundingClientRect().left - track.getBoundingClientRect().left : 0;
 };
-// 스크롤 위치는 엔진에 맡긴다. 직접 더하면 소수점·기기픽셀 반올림이 남아서 이미지가
-// 스냅 지점에 정확히 안 붙고 한쪽으로 쏠린 채 멈춘다.
+// 스크롤 위치는 엔진에 맡긴다(scrollIntoView). 직접 더하면 소수점·기기픽셀 반올림이
+// 남아서 이미지가 스냅 지점에 정확히 안 붙고 한쪽으로 쏠린 채 멈춘다.
+// 이동하는 동안은 스냅을 꺼야 한다 — mandatory 스냅이 켜진 채로는 사파리가 프로그램
+// 스크롤을 현재 스냅 지점으로 되돌린다 (재열기 시 이전 이미지에 고정되던 원인).
+// 복원은 같은 함수 안에서 동기로, offsetWidth 읽기는 껐다 켠 게 합쳐지지 않게 하는
+// 강제 리플로우.
 const goToSlot = k => {
   const el = track.children[k];
-  if (el) el.scrollIntoView({inline: 'center', block: 'nearest'});
+  if (!el) return;
+  track.style.scrollSnapType = 'none';
+  void track.offsetWidth;
+  el.scrollIntoView({inline: 'center', block: 'nearest'});
+  void track.offsetWidth;
+  track.style.scrollSnapType = '';
 };
 const slotNow = () => {
   let best = 0, bestD = Infinity;
@@ -178,17 +187,7 @@ function recenter() {
   // 가운데서 두 벌 이상 벗어났을 때만 되돌린다. 매번 되돌리면 그때마다 다른 <img>
   // 요소로 갈아타서 깜빡인다 — 빈도를 낮추면 두 바퀴에 한 번꼴이 된다.
   // (제자리일 때는 정렬만 다시 맞춘다: 한쪽으로 쏠린 채 멈추는 것 교정)
-  if (Math.abs(k - to) < 2 * n) { goToSlot(k); return; }
-
-  // 사파리는 스냅이 mandatory인 동안 프로그램 스크롤을 되돌려버린다. 옮기는 동안만 끄되,
-  // 복원은 같은 함수 안에서 동기로 끝낸다 — rAF나 타이머에 맡기면 그게 안 돌 때
-  // 스냅이 꺼진 채로 굳는다. 되켠 순간의 가장 가까운 스냅 지점은 방금 옮겨온 자리다.
-  // offsetWidth 읽기는 강제 리플로우 — 이게 없으면 껐다 켠 게 한 번에 합쳐져 무효가 된다.
-  track.style.scrollSnapType = 'none';
-  void track.offsetWidth;
-  goToSlot(to);
-  void track.offsetWidth;
-  track.style.scrollSnapType = '';
+  goToSlot(Math.abs(k - to) < 2 * n ? k : to);
 }
 let settle;
 const checkRecenter = () => { clearTimeout(settle); settle = setTimeout(recenter, 150); };

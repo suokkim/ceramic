@@ -83,6 +83,7 @@
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
 let n = 0;                        // 실제 이미지 수
+let imgNames = [];                // images.json 목록 (역순 정렬 상태)
 let COPIES = 3, MID = 1;          // 세트를 여러 벌 늘어놓고 가운데 벌을 기준으로 쓴다
 
 const slide = (src, alt) => {
@@ -104,6 +105,7 @@ const altOf = name => name.split('?')[0].replace('.png', '');
 fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
   const grid = document.getElementById('grid');
   n = names.length;
+  imgNames = names;
   // 9벌: 재정렬이 간헐적으로 실패해도(iOS) 끝에 닿기까지 앞뒤 4바퀴 여유.
   // 5벌로 줄였더니 실기기에서 다시 막혔다 — 버퍼가 곧 안전장치다.
   COPIES = n <= 10 ? 9 : 3;
@@ -123,7 +125,18 @@ fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
   for (const name of order) track.appendChild(slide(srcOf(name), altOf(name)));
 });
 
-const offset = () => (n > 1 ? MID * n : 0);  // 가운데 벌의 시작 슬롯
+// 슬롯 j에는 imgNames[(j + shift) % n]가 보인다. shift를 바꾸면 스크롤을 건드리지 않고
+// "지금 서 있는 슬롯"에 원하는 이미지를 가져올 수 있다 — 세트가 반복 구조라 회전해도
+// 앞뒤 순서는 그대로 유지된다.
+let shift = 0;
+const applyShift = () => {
+  if (n < 1) return;
+  [...track.children].forEach((div, j) => {
+    const name = imgNames[(((j + shift) % n) + n) % n];
+    const im = div.firstElementChild;
+    if (im.getAttribute('src') !== srcOf(name)) { im.src = srcOf(name); im.alt = altOf(name); }
+  });
+};
 
 // 사파리는 다이얼로그가 열린 직후 스냅을 다시 계산하면서 위치를 0으로 되돌릴 때가 있다.
 // 그러면 wrap()이 슬롯 0을 보고 마지막 장으로 보내버려 엉뚱한 이미지가 뜬다.
@@ -178,12 +191,19 @@ const closeViewer = () => { unlockPage(); viewer.close(); };
 viewer.addEventListener('close', unlockPage);
 
 // showModal 먼저 해야 트랙에 폭이 잡혀서 위치 계산이 맞는다.
+// 열 때 스크롤을 이미지 위치로 옮기는 게 아니라, 지금 서 있는 슬롯에 원하는 이미지가
+// 오도록 내용을 회전시킨다(applyShift). iOS가 프로그램 스크롤을 무시해서 재열기 때
+// 이전 이미지에 고정되던 문제를 스크롤 자체를 없애는 것으로 푼다.
 function openAt(i) {
   lockPage();
   viewer.showModal();
-  goal = i + offset();
-  // goToSlot은 실제 좌표 차이만큼 더하므로 여러 번 불러도 안전하고, 어긋나 있으면 정확히
-  // 보정된다. 사파리가 레이아웃·스냅을 몇 프레임에 걸쳐 확정하므로 초반 몇 프레임 찍어둔다.
+  let k = slotNow();
+  // 끝 근처(첫 열기 등)면 가운데 벌로 옮겨두기를 시도. 실패해도 아래 회전이 이미지를 맞춘다.
+  const home = MID * n + (((k % n) + n) % n);
+  if (Math.abs(k - home) >= n) { goToSlot(home); k = slotNow(); }
+  shift = n ? (((i - k) % n) + n) % n : 0;
+  applyShift();
+  goal = k;
   hold();
   requestAnimationFrame(hold);
   requestAnimationFrame(() => requestAnimationFrame(hold));

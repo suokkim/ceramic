@@ -56,14 +56,14 @@
   dialog[open] { animation: fadeIn .32s ease; }
   dialog[open]::backdrop { animation: fadeIn .32s ease; }
   /* 배경보다 반 박자 늦게, 짧은 거리를 길게 감속하며 떠오른다.
-     이미지 쪽 키프레임에 opacity를 넣으면 안 된다 — 애니메이션이 어떤 이유로든 멈추면
-     (iOS가 다수 요소 애니메이션을 건너뛸 때) backwards 채움 탓에 opacity:0에 갇혀
-     이미지가 사라지고 어두운 배경만 남는다. 페이드는 dialog가 담당한다. */
-  dialog[open] #track img { animation: rise .55s .05s cubic-bezier(.16,1,.3,1) backwards; }
+     .pop(지금 보이는 한 장)에만 건다 — 45장 전부에 걸면 transform이 이미지마다 GPU
+     레이어를 만들어 iOS가 메모리 스파이크로 화면째 죽는다(어두워지며 먹통).
+     키프레임에 opacity 금지 — 애니메이션이 멈추면 backwards 채움 탓에 투명하게 갇힌다. */
+  dialog[open] #track img.pop { animation: rise .55s .05s cubic-bezier(.16,1,.3,1) backwards; }
   @keyframes fadeIn { from { opacity: 0; } }
   @keyframes rise { from { transform: translateY(10px) scale(.985); } }
   @media (prefers-reduced-motion: reduce) {
-    dialog[open], dialog[open]::backdrop, dialog[open] #track img { animation: none; }
+    dialog[open], dialog[open]::backdrop, dialog[open] #track img.pop { animation: none; }
   }
   /* 전체 이미지를 가로로 늘어놓고 브라우저 기본 스크롤 스냅으로 넘긴다.
      손가락 따라오기·관성·스냅이 전부 네이티브라 직접 만든 드래그보다 부드럽다. */
@@ -218,6 +218,9 @@ function openAt(i) {
   if (Math.abs(k - home) >= n) { goToSlot(home); k = slotNow(); }
   shift = n ? (((i - k) % n) + n) % n : 0;
   applyShift();
+  // 떠오르기 애니메이션은 지금 열리는 한 장에만
+  track.querySelector('img.pop')?.classList.remove('pop');
+  track.children[k]?.firstElementChild.classList.add('pop');
   goal = k;
   hold();
   requestAnimationFrame(hold);

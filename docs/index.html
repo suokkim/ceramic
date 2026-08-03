@@ -86,7 +86,7 @@
 <div id="viewer" role="dialog" aria-modal="true"><div id="track"></div></div>
 <!-- 푸터 끝 b숫자 = 배포 버전 표식. GitHub Pages가 HTML을 10분 캐시하므로
      폰에서 어떤 버전을 보고 있는지 이걸로 확인한다. 배포마다 1씩 올릴 것. -->
-<footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026&ensp;·&ensp;b25</footer>
+<footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026&ensp;·&ensp;b26</footer>
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
@@ -155,19 +155,15 @@ fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
   });
 });
 
-// iOS는 overflow:hidden으로 터치 스크롤이 안 막힌다. 열려 있는 동안 body를 fixed로
-// 못 박는 것이 유일하게 확실한 잠금. 닫을 때 스크롤 위치를 되돌린다.
+// 배경 잠금. body position:fixed는 절대 금지 — iOS는 body가 큰 음수 top으로 고정되면
+// 그 안의 fixed 요소를 화면에는 제대로 그리면서 터치 판정은 엉뚱한 위치로 하는 버그가
+// 있어서, 이미지는 보이는데 아무 터치도 안 먹는 상태가 된다(페이지를 많이 내린 마지막
+// 이미지일수록 심함). 잠금은 오버레이가 전 화면을 덮는 것 + 트랙의 touch-action:none이
+// 네이티브 스크롤을 차단하는 것으로 충분하다.
+// overflow:hidden이 걸리면 스크롤 위치가 0으로 리셋되므로 기억해뒀다 닫을 때 되돌린다.
 let pageY = 0;
-const lockPage = () => {
-  pageY = scrollY;
-  document.documentElement.classList.add('locked');
-  document.body.style.cssText = `position:fixed; top:${-pageY}px; left:0; right:0;`;
-};
-const unlockPage = () => {
-  document.documentElement.classList.remove('locked');
-  document.body.style.cssText = '';
-  scrollTo(0, pageY);
-};
+const lockPage = () => { pageY = scrollY; document.documentElement.classList.add('locked'); };
+const unlockPage = () => { document.documentElement.classList.remove('locked'); scrollTo(0, pageY); };
 const isOpen = () => viewer.classList.contains('open');
 const closeViewer = () => { unlockPage(); viewer.classList.remove('open'); };
 

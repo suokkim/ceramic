@@ -150,8 +150,8 @@ const EASE = 'transform .7s cubic-bezier(.22,1,.36,1)';
 const FADE = 'opacity .7s cubic-bezier(.22,1,.36,1)';
 const DIM = .25;   // 화면 밖 장의 기본 밝기 — 나가는 장이 어두운 배경에 녹아들게
 
-// 이동량에 비례해 가운데 장은 어두워지고 들어오는 장은 밝아진다 (디졸브 겹침).
-// 나가는 이미지가 원래 밝기 그대로 밀려나면 시선을 잡아끌어 거슬린다.
+// 나가는 장만 이동량에 비례해 어두워져 배경에 녹아들고, 들어오는 장은 방향과 무관하게
+// 처음부터 제 밝기로 들어온다 (드래그 시작 시점엔 화면 밖이라 밝기 전환이 튀지 않는다).
 const setFade = (vals, animate) => {
   [...track.children].forEach((d, j) => {
     d.style.transition = animate ? FADE : 'none';
@@ -162,9 +162,9 @@ const setX = (px, animate) => {
   track.style.transition = animate ? EASE : 'none';
   track.style.transform = `translateX(calc(-100% + ${px}px))`;
   const p = Math.min(1, Math.abs(px) / innerWidth);
-  setFade([px > 0 ? DIM + (1 - DIM) * p : DIM,
+  setFade([px > 0 ? 1 : DIM,
            1 - (1 - DIM) * p,
-           px < 0 ? DIM + (1 - DIM) * p : DIM], animate);
+           px < 0 ? 1 : DIM], animate);
 };
 
 // 진행 중인 전환을 "즉시 확정"한다. 모든 입력(터치 시작·넘김·열기)이 이걸 먼저 부르므로

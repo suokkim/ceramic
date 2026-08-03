@@ -143,9 +143,24 @@ function show() {
 // 넘김 전환: 시작은 손가락 속도를 이어받아 빠르게, 끝은 길게 미끄러지며 안착(easeOutExpo).
 // 짧고 끝이 급한 곡선은 "턱 하고 서는" 느낌을 준다.
 const EASE = 'transform .7s cubic-bezier(.22,1,.36,1)';
+const FADE = 'opacity .7s cubic-bezier(.22,1,.36,1)';
+const DIM = .25;   // 화면 밖 장의 기본 밝기 — 나가는 장이 어두운 배경에 녹아들게
+
+// 이동량에 비례해 가운데 장은 어두워지고 들어오는 장은 밝아진다 (디졸브 겹침).
+// 나가는 이미지가 원래 밝기 그대로 밀려나면 시선을 잡아끌어 거슬린다.
+const setFade = (vals, animate) => {
+  [...track.children].forEach((d, j) => {
+    d.style.transition = animate ? FADE : 'none';
+    d.style.opacity = vals[j];
+  });
+};
 const setX = (px, animate) => {
   track.style.transition = animate ? EASE : 'none';
   track.style.transform = `translateX(calc(-100% + ${px}px))`;
+  const p = Math.min(1, Math.abs(px) / innerWidth);
+  setFade([px > 0 ? DIM + (1 - DIM) * p : DIM,
+           1 - (1 - DIM) * p,
+           px < 0 ? DIM + (1 - DIM) * p : DIM], animate);
 };
 
 // 진행 중인 전환을 "즉시 확정"한다. 모든 입력(터치 시작·넘김·열기)이 이걸 먼저 부르므로
@@ -168,6 +183,7 @@ function slideTo(dir) {
   if (!dir || n < 2) { setX(0, true); return; }
   track.style.transition = EASE;
   track.style.transform = `translateX(${-100 - dir * 100}%)`;
+  setFade(dir > 0 ? [DIM, DIM, 1] : [1, DIM, DIM], true);
   pending = {dir, timer: setTimeout(commit, 720)};
 }
 

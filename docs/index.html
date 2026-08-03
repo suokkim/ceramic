@@ -80,7 +80,8 @@
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
-let n = 0;  // 실제 이미지 수. 2장 이상이면 양 끝에 복제본을 둬서 순환시킨다.
+let n = 0;                        // 실제 이미지 수
+const COPIES = 3, MID = 1;        // 세트를 3벌 늘어놓고 가운데(1번) 벌을 기준으로 쓴다
 
 const slide = (src, alt) => {
   // 확대용은 lazy 금지 — 화면 밖 슬라이드가 로드되지 않아 넘기면 빈 화면이 된다.
@@ -105,12 +106,14 @@ fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
     grid.appendChild(thumb);
   });
 
-  // 트랙 순서: [마지막 복제] 1 2 … N [첫 장 복제]
-  const order = n > 1 ? [names[n - 1], ...names, names[0]] : names;
+  // 같은 세트를 3벌 이어붙이고 가운데 벌에서 시작한다. 사용자가 트랙 양 끝에 닿을 일이
+  // 없으므로 "끝에서 순간이동" 자체가 사라진다 — 사파리가 경계에서 프로그램 스크롤을
+  // 무시해 갇히던 문제의 근본 원인이 이것이었다.
+  const order = n > 1 ? Array.from({length: COPIES * n}, (_, k) => names[k % n]) : names;
   for (const name of order) track.appendChild(slide(srcOf(name), altOf(name)));
 });
 
-const offset = () => (n > 1 ? 1 : 0);  // 복제본 때문에 실제 i는 한 칸 밀린다
+const offset = () => (n > 1 ? MID * n : 0);  // 가운데 벌의 시작 슬롯
 
 // 사파리는 다이얼로그가 열린 직후 스냅을 다시 계산하면서 위치를 0으로 되돌릴 때가 있다.
 // 그러면 wrap()이 슬롯 0을 보고 마지막 장으로 보내버려 엉뚱한 이미지가 뜬다.
@@ -156,44 +159,28 @@ function hold() {
 const release = () => { goal = null; };   // 사용자가 손대는 순간부터는 자유롭게
 for (const ev of ['pointerdown', 'touchstart', 'wheel']) track.addEventListener(ev, release, {passive: true});
 
-// 복제본에 멈췄으면 반대쪽 진짜 장으로 순간이동. 스크롤이 멎은 뒤에만 손대야
-// 관성 스크롤 중에 튀지 않는다. (scrollend는 사파리 지원이 늦어 타이머로 대신함)
-let jumping = false;   // 순간이동 중 재진입 금지 (스크롤↔스냅복원 무한루프 방지)
-function wrap(tries) {
-  if (jumping || !viewer.open || !track.clientWidth || n < 2) return;
+// 스크롤이 멎으면 지금 보고 있는 이미지의 "가운데 벌" 위치로 되돌린다. 보이는 그림은
+// 그대로라 순간이동이 눈에 띄지 않고, 사용자는 늘 트랙 한복판에 있게 되어 끝에 닿지 않는다.
+// 이미 제자리면 정렬만 다시 맞춘다 (한쪽으로 쏠린 채 멈추는 것 교정).
+function recenter() {
+  if (!viewer.open || !track.clientWidth || n < 2) return;
   if (goal !== null) return hold();   // 아직 사용자가 안 만졌다 = 브라우저가 흔든 것, 되돌린다
   const k = slotNow();
-  // 복제본이면 반대편 진짜 장으로, 아니면 제자리를 다시 정확히 맞춘다. 후자가 있어야
-  // 스냅에 덜 붙어 한쪽으로 쏠린 채 멈추는 것까지 매번 교정된다.
-  const to = k === 0 ? n              // 왼쪽 복제(=마지막) → 진짜 마지막
-           : k === n + 1 ? 1          // 오른쪽 복제(=첫 장) → 진짜 첫 장
-           : k;
-  if (to === k) { goToSlot(to); return; }   // 정렬만 한 경우
+  const to = MID * n + (k % n);
+  if (to === k) { goToSlot(to); return; }
 
-  // 사파리는 스냅이 mandatory인 동안 프로그램 스크롤을 스냅으로 되돌려버린다. 그래서 끝
-  // 복제본에서 순간이동이 무시되고, 그 자리는 더 스크롤할 곳이 없어 그대로 갇힌다.
-  // 순간이동 동안만 스냅을 끄고, 다음 프레임에 되돌린다.
-  jumping = true;
+  // 사파리는 스냅이 mandatory인 동안 프로그램 스크롤을 되돌려버린다. 옮기는 동안만 끄되,
+  // 복원은 같은 함수 안에서 동기로 끝낸다 — rAF나 타이머에 맡기면 그게 안 돌 때
+  // 스냅이 꺼진 채로 굳는다. 되켠 순간의 가장 가까운 스냅 지점은 방금 옮겨온 자리다.
   track.style.scrollSnapType = 'none';
   goToSlot(to);
-  // 되돌리기는 rAF와 타이머 둘 다 걸어둔다 — 어느 쪽이 안 돌아도 스냅이 꺼진 채로,
-  // 또는 jumping이 켜진 채로 영구히 멈추지 않게. 두 번 실행돼도 무해하다.
-  const restore = () => { track.style.scrollSnapType = ''; jumping = false; };
-  requestAnimationFrame(restore);
-  setTimeout(restore, 120);
-  // 사파리는 관성·고무줄 스크롤 중 scrollLeft 변경을 무시할 때가 있다. 실패한 채 끝
-  // 복제본에 남으면 더 스크롤할 곳이 없어 scroll 이벤트도 안 나고 = 영구히 갇힌다.
-  // 먹을 때까지 다시 시도해야 하는 이유.
-  if (slotNow() !== to && (tries || 0) < 10)
-    setTimeout(() => wrap((tries || 0) + 1), 100);
+  track.style.scrollSnapType = '';
 }
 let settle;
-const checkWrap = () => { clearTimeout(settle); settle = setTimeout(wrap, 150); };
-track.onscroll = checkWrap;
-// 끝에 갇히면 스크롤이 아예 안 일어나 scroll 이벤트도 없다. 손을 뗄 때마다 한 번 더
-// 확인해서, 사용자가 계속 밀면 반드시 빠져나오게 한다.
-track.addEventListener('touchend', checkWrap);
-track.addEventListener('pointerup', checkWrap);
+const checkRecenter = () => { clearTimeout(settle); settle = setTimeout(recenter, 150); };
+track.onscroll = checkRecenter;
+track.addEventListener('touchend', checkRecenter);
+track.addEventListener('pointerup', checkRecenter);
 
 track.onclick = () => viewer.close();
 // 키보드는 즉시 이동. scroll-snap 컨테이너에서는 smooth 스크롤이 아예 동작하지 않는다

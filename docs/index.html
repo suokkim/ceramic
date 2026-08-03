@@ -55,11 +55,13 @@
      transform은 img에만 건다 — 트랙·슬라이드에 걸면 좌표 계산(gap/scrollIntoView)이 틀어진다 */
   dialog[open] { animation: fadeIn .32s ease; }
   dialog[open]::backdrop { animation: fadeIn .32s ease; }
-  /* 배경보다 반 박자 늦게, 짧은 거리를 길게 감속하며 떠오른다 — 빠른 직선 이동이
-     "더덕거림"으로 느껴져서 곡선을 easeOutExpo 계열로, 시간은 길게, 이동은 작게 */
+  /* 배경보다 반 박자 늦게, 짧은 거리를 길게 감속하며 떠오른다.
+     이미지 쪽 키프레임에 opacity를 넣으면 안 된다 — 애니메이션이 어떤 이유로든 멈추면
+     (iOS가 다수 요소 애니메이션을 건너뛸 때) backwards 채움 탓에 opacity:0에 갇혀
+     이미지가 사라지고 어두운 배경만 남는다. 페이드는 dialog가 담당한다. */
   dialog[open] #track img { animation: rise .55s .05s cubic-bezier(.16,1,.3,1) backwards; }
   @keyframes fadeIn { from { opacity: 0; } }
-  @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+  @keyframes rise { from { transform: translateY(10px) scale(.985); } }
   @media (prefers-reduced-motion: reduce) {
     dialog[open], dialog[open]::backdrop, dialog[open] #track img { animation: none; }
   }

@@ -65,21 +65,19 @@
   @media (prefers-reduced-motion: reduce) {
     dialog[open], dialog[open]::backdrop, dialog[open] #track img.pop { animation: none; }
   }
-  /* 전체 이미지를 가로로 늘어놓고 브라우저 기본 스크롤 스냅으로 넘긴다.
-     손가락 따라오기·관성·스냅이 전부 네이티브라 직접 만든 드래그보다 부드럽다. */
+  /* 3장(이전·현재·다음)만 들고 transform으로 넘기는 페이저. 스크롤을 아예 쓰지 않는다 —
+     iOS의 스크롤 스냅은 프로그램 스크롤 무시·재스냅·경계 고착 등 문제가 많아 전부 걷어냈다. */
   #track {
     display: flex; width: 100%; height: 100%;
-    overflow-x: auto; overflow-y: hidden;
-    scroll-snap-type: x mandatory; overscroll-behavior: contain;
-    touch-action: pan-x; /* 세로 성분이 뒤 페이지로 새어나가 제스처를 뺏기지 않게 */
-    scrollbar-width: none;
+    transform: translateX(-100%);
+    touch-action: none; /* 제스처는 전부 JS가 처리, 배경은 어차피 잠겨 있다 */
   }
-  #track::-webkit-scrollbar { display: none; }
-  #track > div { flex: 0 0 100%; scroll-snap-align: center;
+  #track > div { flex: 0 0 100%;
     display: flex; align-items: center; justify-content: center; }
   /* 슬라이드 기준 %라서 뷰포트 단위 오차를 타지 않는다 */
   #track img { max-width: 92%; max-height: 92%; display: block; cursor: zoom-out;
-    border-radius: 14px; border-top-right-radius: 0; }
+    border-radius: 14px; border-top-right-radius: 0;
+    -webkit-user-drag: none; user-select: none; }
 </style>
 </head>
 <body>
@@ -96,99 +94,64 @@
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
-let n = 0;                        // 실제 이미지 수
-let imgNames = [];                // images.json 목록 (역순 정렬 상태)
-let COPIES = 3, MID = 1;          // 세트를 여러 벌 늘어놓고 가운데 벌을 기준으로 쓴다
+let names = [], n = 0, cur = 0;   // cur = 지금 보이는 이미지 인덱스
 
-const slide = (src, alt) => {
-  // 확대용은 lazy 금지 — 화면 밖 슬라이드가 로드되지 않아 넘기면 빈 화면이 된다.
-  // 전부 합쳐 1MB대라 미리 받아도 부담 없고, 썸네일과 같은 파일이라 캐시를 공유한다.
-  const div = document.createElement('div');
-  const img = new Image();
-  // decoding=sync는 금지 — 회전(applyShift)으로 45개 src가 한꺼번에 바뀔 때 iOS가
-  // 대형 PNG를 메인 스레드에서 몰아서 디코딩하다 화면째 먹통이 된다.
-  img.src = src; img.alt = alt;
-  div.appendChild(img);
-  return div;
-};
 const srcOf = name => 'images/' + name;
 const altOf = name => name.split('?')[0].replace('.png', '');
 
-fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
-  const grid = document.getElementById('grid');
-  n = names.length;
-  imgNames = names;
-  // 9벌: 재정렬이 간헐적으로 실패해도(iOS) 끝에 닿기까지 앞뒤 4바퀴 여유.
-  // 5벌로 줄였더니 실기기에서 다시 막혔다 — 버퍼가 곧 안전장치다.
-  COPIES = n <= 10 ? 9 : 3;
-  MID = (COPIES - 1) / 2;
+// 슬라이드는 딱 3장: [이전, 현재, 다음]. 트랙은 늘 가운데(-100%)를 보여준다.
+const slides = [0, 1, 2].map(() => {
+  const div = document.createElement('div');
+  div.appendChild(new Image());
+  track.appendChild(div);
+  return div.firstElementChild;
+});
+slides[1].classList.add('pop');   // 열림 애니메이션은 항상 가운데 장에만
 
-  names.forEach((name, i) => {
+// 현재 인덱스 기준으로 3장의 내용을 채운다
+function show() {
+  if (!n) return;
+  [(cur - 1 + n) % n, cur, (cur + 1) % n].forEach((idx, j) => {
+    const name = names[idx];
+    if (slides[j].getAttribute('src') !== srcOf(name)) {
+      slides[j].src = srcOf(name);
+      slides[j].alt = altOf(name);
+    }
+  });
+}
+
+const setX = (px, animate) => {
+  track.style.transition = animate ? 'transform .3s cubic-bezier(.2,.7,.3,1)' : 'none';
+  track.style.transform = `translateX(calc(-100% + ${px}px))`;
+};
+
+// dir: -1 이전 / +1 다음 / 0 제자리 복귀. 확정은 transitionend가 아니라 타이머로 —
+// transitionend는 유실될 수 있고(예전에 그걸로 뷰어가 영구히 잠겼다) 타이머는 반드시 돈다.
+let animating = false;
+function slideTo(dir) {
+  if (animating || !n) return;
+  if (!dir || n < 2) { setX(0, true); return; }
+  animating = true;
+  track.style.transition = 'transform .3s cubic-bezier(.2,.7,.3,1)';
+  track.style.transform = `translateX(${-100 - dir * 100}%)`;
+  setTimeout(() => {
+    cur = ((cur + dir) % n + n) % n;
+    show();
+    setX(0, false);
+    animating = false;
+  }, 320);
+}
+
+fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
+  names = list; n = list.length;
+  const grid = document.getElementById('grid');
+  list.forEach((name, i) => {
     const thumb = new Image();
     thumb.src = srcOf(name); thumb.alt = altOf(name); thumb.loading = 'lazy';
     thumb.onclick = () => openAt(i);
     grid.appendChild(thumb);
   });
-
-  // 같은 세트를 3벌 이어붙이고 가운데 벌에서 시작한다. 사용자가 트랙 양 끝에 닿을 일이
-  // 없으므로 "끝에서 순간이동" 자체가 사라진다 — 사파리가 경계에서 프로그램 스크롤을
-  // 무시해 갇히던 문제의 근본 원인이 이것이었다.
-  const order = n > 1 ? Array.from({length: COPIES * n}, (_, k) => names[k % n]) : names;
-  for (const name of order) track.appendChild(slide(srcOf(name), altOf(name)));
 });
-
-// 슬롯 j에는 imgNames[(j + shift) % n]가 보인다. shift를 바꾸면 스크롤을 건드리지 않고
-// "지금 서 있는 슬롯"에 원하는 이미지를 가져올 수 있다 — 세트가 반복 구조라 회전해도
-// 앞뒤 순서는 그대로 유지된다.
-let shift = 0;
-const applyShift = () => {
-  if (n < 1) return;
-  [...track.children].forEach((div, j) => {
-    const name = imgNames[(((j + shift) % n) + n) % n];
-    const im = div.firstElementChild;
-    if (im.getAttribute('src') !== srcOf(name)) { im.src = srcOf(name); im.alt = altOf(name); }
-  });
-};
-
-// 사파리는 다이얼로그가 열린 직후 스냅을 다시 계산하면서 위치를 0으로 되돌릴 때가 있다.
-// 그러면 wrap()이 슬롯 0을 보고 마지막 장으로 보내버려 엉뚱한 이미지가 뜬다.
-// 그래서 사용자가 트랙을 처음 만지기 전까지는 목표 슬롯을 고수한다 (타이머가 아니라
-// "사용자가 손댔는가"가 기준이라 기기·속도와 무관하게 동작한다).
-let goal = null;
-
-// 위치 계산은 전부 실제 레이아웃 좌표로 한다. 슬롯 번호에 clientWidth를 곱하면
-// 모바일에서 실제 슬라이드 폭과 미세하게 어긋나고, 그 오차가 인덱스에 비례해 커져서
-// 어느 지점부터 한 칸씩 밀린 이미지가 뜬다.
-const gap = k => {
-  const el = track.children[k];
-  return el ? el.getBoundingClientRect().left - track.getBoundingClientRect().left : 0;
-};
-// 스크롤 위치는 엔진에 맡긴다(scrollIntoView). 직접 더하면 소수점·기기픽셀 반올림이
-// 남아서 이미지가 스냅 지점에 정확히 안 붙고 한쪽으로 쏠린 채 멈춘다.
-// 이동하는 동안은 스냅을 꺼야 한다 — mandatory 스냅이 켜진 채로는 사파리가 프로그램
-// 스크롤을 현재 스냅 지점으로 되돌린다 (재열기 시 이전 이미지에 고정되던 원인).
-// 복원은 같은 함수 안에서 동기로, offsetWidth 읽기는 껐다 켠 게 합쳐지지 않게 하는
-// 강제 리플로우.
-const goToSlot = k => {
-  const el = track.children[k];
-  if (!el) return;
-  // 이미 제자리면 아무것도 안 한다. 스냅 토글·스크롤을 생략해야 iOS에서
-  // 스크롤 이벤트 → 재고정 → 스크롤 이벤트로 이어지는 무한 루프(먹통)가 안 생긴다.
-  if (Math.abs(gap(k)) < 1) return;
-  track.style.scrollSnapType = 'none';
-  void track.offsetWidth;
-  el.scrollIntoView({inline: 'center', block: 'nearest'});
-  void track.offsetWidth;
-  track.style.scrollSnapType = '';
-};
-const slotNow = () => {
-  let best = 0, bestD = Infinity;
-  for (let k = 0; k < track.children.length; k++) {
-    const d = Math.abs(gap(k));
-    if (d < bestD) { bestD = d; best = k; }
-  }
-  return best;
-};
 
 // iOS는 overflow:hidden으로 터치 스크롤이 안 막힌다. 열려 있는 동안 body를 fixed로
 // 못 박는 것이 유일하게 확실한 잠금. 닫을 때 스크롤 위치를 되돌린다.
@@ -205,59 +168,55 @@ const unlockPage = () => {
 const closeViewer = () => { unlockPage(); viewer.close(); };
 viewer.addEventListener('close', unlockPage);
 
-// showModal 먼저 해야 트랙에 폭이 잡혀서 위치 계산이 맞는다.
-// 열 때 스크롤을 이미지 위치로 옮기는 게 아니라, 지금 서 있는 슬롯에 원하는 이미지가
-// 오도록 내용을 회전시킨다(applyShift). iOS가 프로그램 스크롤을 무시해서 재열기 때
-// 이전 이미지에 고정되던 문제를 스크롤 자체를 없애는 것으로 푼다.
+// 스크롤이 없으니 "열면 그 이미지"가 자명하다 — 위치 계산도, 고정도, 재정렬도 필요 없다.
 function openAt(i) {
   lockPage();
+  cur = i;
+  show();
+  setX(0, false);
   viewer.showModal();
-  let k = slotNow();
-  // 끝 근처(첫 열기 등)면 가운데 벌로 옮겨두기를 시도. 실패해도 아래 회전이 이미지를 맞춘다.
-  const home = MID * n + (((k % n) + n) % n);
-  if (Math.abs(k - home) >= n) { goToSlot(home); k = slotNow(); }
-  shift = n ? (((i - k) % n) + n) % n : 0;
-  applyShift();
-  // 떠오르기 애니메이션은 지금 열리는 한 장에만
-  track.querySelector('img.pop')?.classList.remove('pop');
-  track.children[k]?.firstElementChild.classList.add('pop');
-  goal = k;
-  hold();
-  requestAnimationFrame(hold);
-  requestAnimationFrame(() => requestAnimationFrame(hold));
 }
-function hold() {
-  if (goal !== null) goToSlot(goal);
-}
-const release = () => { goal = null; };   // 사용자가 손대는 순간부터는 자유롭게
-for (const ev of ['pointerdown', 'touchstart', 'wheel']) track.addEventListener(ev, release, {passive: true});
 
-// 스크롤이 멎으면 지금 보고 있는 이미지의 "가운데 벌" 위치로 되돌린다. 보이는 그림은
-// 그대로라 순간이동이 눈에 띄지 않고, 사용자는 늘 트랙 한복판에 있게 되어 끝에 닿지 않는다.
-// 이미 제자리면 정렬만 다시 맞춘다 (한쪽으로 쏠린 채 멈추는 것 교정).
-function recenter() {
-  if (!viewer.open || !track.clientWidth || n < 2) return;
-  if (goal !== null) return hold();   // 아직 사용자가 안 만졌다 = 브라우저가 흔든 것, 되돌린다
-  const k = slotNow();
-  const to = MID * n + (k % n);
-  // 가운데서 두 벌 이상 벗어났을 때만 되돌린다. 매번 되돌리면 그때마다 다른 <img>
-  // 요소로 갈아타서 깜빡인다 — 빈도를 낮추면 두 바퀴에 한 번꼴이 된다.
-  // (제자리일 때는 정렬만 다시 맞춘다: 한쪽으로 쏠린 채 멈추는 것 교정)
-  goToSlot(Math.abs(k - to) < 2 * n ? k : to);
-}
-let settle;
-const checkRecenter = () => { clearTimeout(settle); settle = setTimeout(recenter, 150); };
-track.onscroll = checkRecenter;
-track.addEventListener('touchend', checkRecenter);
-track.addEventListener('pointerup', checkRecenter);
+// 드래그: 손가락/마우스를 따라가고, 놓을 때 충분히 밀었으면 넘기고 아니면 복귀.
+let x0 = 0, dx = 0, down = false, dragging = false;
+track.addEventListener('pointerdown', e => {
+  if (animating || e.button) return;
+  down = true; dragging = false; dx = 0; x0 = e.clientX;
+  try { track.setPointerCapture(e.pointerId); } catch {}
+});
+track.addEventListener('pointermove', e => {
+  if (!down) return;
+  dx = e.clientX - x0;
+  if (!dragging && Math.abs(dx) > 6) dragging = true;
+  if (dragging) setX(dx, false);
+});
+const endDrag = () => {
+  if (!down) return;
+  down = false;
+  if (!dragging) return;   // 드래그가 아니면 click 핸들러가 닫기를 처리
+  const w = track.clientWidth || innerWidth;
+  slideTo(Math.abs(dx) > Math.min(90, w / 5) ? (dx < 0 ? 1 : -1) : 0);
+};
+track.addEventListener('pointerup', endDrag);
+track.addEventListener('pointercancel', endDrag);
 
-track.onclick = () => closeViewer();
-// 키보드는 즉시 이동. scroll-snap 컨테이너에서는 smooth 스크롤이 아예 동작하지 않는다
-// (scrollBy의 behavior 옵션도, CSS scroll-behavior도). 스와이프는 네이티브라 부드럽다.
+track.onclick = () => { if (!dragging) closeViewer(); dragging = false; };
+
+// 트랙패드 두 손가락 스와이프: 관성 이벤트가 계속 오므로 한 제스처당 한 번만
+let wheelLock = false, wheelT = 0;
+track.addEventListener('wheel', e => {
+  if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  e.preventDefault();
+  clearTimeout(wheelT); wheelT = setTimeout(() => { wheelLock = false; }, 250);
+  if (wheelLock || Math.abs(e.deltaX) < 25) return;
+  wheelLock = true;
+  slideTo(e.deltaX > 0 ? 1 : -1);
+}, {passive: false});
+
 document.onkeydown = e => {
   if (!viewer.open) return;
   const dir = {ArrowLeft: -1, ArrowRight: 1}[e.key];
-  if (dir) { release(); goToSlot(slotNow() + dir); }
+  if (dir) slideTo(dir);
 };
 </script>
 </body>

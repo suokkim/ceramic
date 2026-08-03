@@ -96,8 +96,8 @@
 </head>
 <body>
 <header>
-  <svg width="56" height="56" viewBox="0 0 56 56" aria-label="Ceramic">
-    <!-- 블랙 사각형 + 회색 원 겹침 (스케치 참고), 외곽선 없음 -->
+  <svg id="logo" width="56" height="56" viewBox="0 0 56 56" aria-label="Ceramic" style="cursor:pointer">
+    <!-- 블랙 사각형 + 회색 원 겹침 (스케치 참고), 외곽선 없음. 클릭하면 앞뒤가 바뀐다 -->
     <rect x="24" y="8" width="26" height="26" fill="#3a3a3a"/>
     <circle cx="24" cy="30" r="16" fill="#b5b5b5"/>
   </svg>
@@ -149,15 +149,15 @@ function show() {
 // 넘김 전환: 시작은 손가락 속도를 이어받아 빠르게, 끝은 길게 미끄러지며 안착(easeOutExpo).
 // 짧고 끝이 급한 곡선은 "턱 하고 서는" 느낌을 준다.
 const EASE = 'transform .7s cubic-bezier(.22,1,.36,1)';
-const FADE = 'opacity .7s cubic-bezier(.22,1,.36,1)';
-const DIM = .25;   // 화면 밖 장의 기본 밝기 — 나가는 장이 어두운 배경에 녹아들게
+const FADE = 'filter .7s cubic-bezier(.22,1,.36,1)';
+const DIM = .25;   // 화면 밖 장의 기본 밝기 — 나가는 장이 어둡게 눌리며 물러나게
 
-// 나가는 장만 이동량에 비례해 어두워져 배경에 녹아들고, 들어오는 장은 방향과 무관하게
-// 처음부터 제 밝기로 들어온다 (드래그 시작 시점엔 화면 밖이라 밝기 전환이 튀지 않는다).
+// 나가는 장만 이동량에 비례해 어둡게 눌리고(밝기 조절 — 투명도를 쓰면 뒤 페이지가
+// 비쳐 보인다), 들어오는 장은 방향과 무관하게 처음부터 제 밝기로 들어온다.
 const setFade = (vals, animate) => {
   [...track.children].forEach((d, j) => {
     d.style.transition = animate ? FADE : 'none';
-    d.style.opacity = vals[j];
+    d.style.filter = `brightness(${vals[j]})`;
   });
 };
 const setX = (px, animate) => {
@@ -292,6 +292,11 @@ track.addEventListener('wheel', e => {
   wheelLock = true;
   slideTo(e.deltaX > 0 ? 1 : -1);
 }, {passive: false});
+
+// 로고 인터랙션: 누를 때마다 원↔사각형 앞뒤가 바뀐다.
+// SVG는 문서 순서대로 그리므로, 맨 앞 요소를 맨 뒤로 옮기면 앞뒤가 뒤집힌다.
+document.getElementById('logo').onclick = e =>
+  e.currentTarget.appendChild(e.currentTarget.firstElementChild);
 
 // 모아보기 토글 (아이콘 전환은 CSS가 aria-pressed를 보고 처리)
 document.getElementById('gridToggle').onclick = e => {

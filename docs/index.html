@@ -86,7 +86,7 @@
 <div id="viewer" role="dialog" aria-modal="true"><div id="track"></div></div>
 <!-- 푸터 끝 b숫자 = 배포 버전 표식. GitHub Pages가 HTML을 10분 캐시하므로
      폰에서 어떤 버전을 보고 있는지 이걸로 확인한다. 배포마다 1씩 올릴 것. -->
-<footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026&ensp;·&ensp;b27</footer>
+<footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026&ensp;·&ensp;b28</footer>
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
@@ -176,6 +176,11 @@ function openAt(i) {
   setX(0, false);
   viewer.classList.add('open');
 }
+
+// iOS 필수 한 줄: 문서 레벨 터치 리스너가 존재해야 iOS가 요소들에 터치를 제대로
+// 전달한다(오래된 WebKit quirk). 이게 없으면 뷰어 스와이프가 실기기에서 죽는다 —
+// ?debug 모드에서만 정상 동작했던 원인이 디버그가 문서 리스너를 달았기 때문이었다.
+document.addEventListener('touchstart', () => {}, {passive: true});
 
 // 제스처는 iOS에서 가장 오래 검증된 터치 이벤트로만. 포인터 캡처는 iOS에서 클릭·취소
 // 동작이 불안정해 쓰지 않는다. 데스크톱 마우스는 아래에서 따로 처리.

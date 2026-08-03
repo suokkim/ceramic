@@ -81,7 +81,7 @@
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
 let n = 0;                        // 실제 이미지 수
-const COPIES = 3, MID = 1;        // 세트를 3벌 늘어놓고 가운데(1번) 벌을 기준으로 쓴다
+let COPIES = 3, MID = 1;          // 세트를 여러 벌 늘어놓고 가운데 벌을 기준으로 쓴다
 
 const slide = (src, alt) => {
   // 확대용은 lazy 금지 — 화면 밖 슬라이드가 로드되지 않아 넘기면 빈 화면이 된다.
@@ -98,6 +98,10 @@ const altOf = name => name.split('?')[0].replace('.png', '');
 fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(names => {
   const grid = document.getElementById('grid');
   n = names.length;
+  // 재정렬이 몇 번 실패해도 끝에 닿지 않도록 여유를 크게 둔다. 장수가 많아지면
+  // DOM이 무거워지므로 벌 수를 줄인다 (전체 슬라이드 45장 안팎 유지).
+  COPIES = n <= 10 ? 9 : 3;
+  MID = (COPIES - 1) / 2;
 
   names.forEach((name, i) => {
     const thumb = new Image();
@@ -172,8 +176,11 @@ function recenter() {
   // 사파리는 스냅이 mandatory인 동안 프로그램 스크롤을 되돌려버린다. 옮기는 동안만 끄되,
   // 복원은 같은 함수 안에서 동기로 끝낸다 — rAF나 타이머에 맡기면 그게 안 돌 때
   // 스냅이 꺼진 채로 굳는다. 되켠 순간의 가장 가까운 스냅 지점은 방금 옮겨온 자리다.
+  // offsetWidth 읽기는 강제 리플로우 — 이게 없으면 껐다 켠 게 한 번에 합쳐져 무효가 된다.
   track.style.scrollSnapType = 'none';
+  void track.offsetWidth;
   goToSlot(to);
+  void track.offsetWidth;
   track.style.scrollSnapType = '';
 }
 let settle;

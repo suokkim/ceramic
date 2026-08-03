@@ -84,9 +84,7 @@
 </header>
 <div class="grid" id="grid"></div>
 <div id="viewer" role="dialog" aria-modal="true"><div id="track"></div></div>
-<!-- 푸터 끝 b숫자 = 배포 버전 표식. GitHub Pages가 HTML을 10분 캐시하므로
-     폰에서 어떤 버전을 보고 있는지 이걸로 확인한다. 배포마다 1씩 올릴 것. -->
-<footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026&ensp;·&ensp;b28</footer>
+<footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026</footer>
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
@@ -248,29 +246,6 @@ document.onkeydown = e => {
   if (dir) slideTo(dir);
 };
 
-// 임시 진단 모드: 주소에 ?debug 를 붙이면 화면 하단에 이벤트·에러 로그를 띄운다.
-// 실기기(iOS)에서 무엇이 실제로 발생하는지 보기 위한 것. 문제 해결 후 제거 예정.
-if (location.search.includes('debug')) {
-  const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow:hidden;' +
-    'z-index:99;background:rgba(0,0,0,.82);color:#7CFC00;font:11px/1.5 monospace;' +
-    'padding:6px;pointer-events:none;white-space:pre-wrap;word-break:break-all;';
-  document.body.appendChild(box);
-  const log = m => { box.textContent = (box.textContent + '\n' + m).split('\n').slice(-16).join('\n'); };
-  window.onerror = (m, s, l, c) => { log('ERR ' + m + ' @' + l + ':' + c); };
-  addEventListener('unhandledrejection', e => log('REJ ' + e.reason));
-  const st = () => `tdrag=${tdrag?1:0} pend=${pending?1:0} cur=${cur} tf=${(track.style.transform||'').replace('translateX','').slice(0,22)}`;
-  for (const ev of ['touchstart', 'touchmove', 'touchend', 'touchcancel', 'click'])
-    track.addEventListener(ev, e => {
-      const p = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
-      log(`${ev} x=${Math.round(p.clientX || 0)} y=${Math.round(p.clientY || 0)} ${st()}`);
-    }, true);
-  viewer.addEventListener('touchstart', e => { if (e.target === viewer) log('!! touch hit viewer, not track'); }, true);
-  document.addEventListener('touchstart', e => {
-    if (isOpen() && !viewer.contains(e.target)) log('!! touch passed the overlay: ' + (e.target.tagName || '?'));
-  }, true);
-  log(`debug on ${innerWidth}x${innerHeight} dpr=${devicePixelRatio}`);
-}
 </script>
 </body>
 </html>

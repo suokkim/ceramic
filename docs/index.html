@@ -33,8 +33,10 @@
      <input type="checkbox" switch>가 토글되면 시스템 햅틱이 울린다(iOS 17.4+).
      그래서 탭 대상을 label로 만들어 이 숨은 스위치를 건드리게 한다. 실제 탭에만
      반응하므로 스와이프에는 못 쓴다. 화면에서 지우되(opacity) 렌더는 유지할 것 —
-     display:none이면 토글이 안 일어나 햅틱도 없다. */
-  #hap { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+     display:none이면 토글이 안 일어나 햅틱도 없다.
+     fixed인 이유: label 활성화는 스위치에 포커스를 주는데, 화면 밖에 있으면 브라우저가
+     거기로 스크롤해버린다. 항상 뷰포트 안에 있으면 그 점프가 원천 차단된다. */
+  #hap { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
   #logoBtn { display: flex; cursor: pointer; }
   #gridToggle {
     display: inline-flex; cursor: pointer; padding: 4px;
@@ -127,7 +129,8 @@
   </label>
 </header>
 <div class="grid" id="grid"></div>
-<div id="viewer" role="dialog" aria-modal="true"><div id="track"></div></div>
+<!-- label인 이유: 확대 화면 어디를 탭하든 #hap 스위치가 토글돼 아이폰 햅틱이 울린다 -->
+<label for="hap" id="viewer" role="dialog" aria-modal="true"><div id="track"></div></label>
 <footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026</footer>
 <script>
 const viewer = document.getElementById('viewer');
@@ -217,7 +220,12 @@ fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
     const thumb = new Image();
     thumb.src = srcOf(name); thumb.alt = altOf(name); thumb.loading = 'lazy';
     thumb.onclick = () => openAt(i);
-    grid.appendChild(thumb);
+    // 썸네일도 label로 감싸야 아이폰에서 진동한다. display:contents라 그리드 배치는
+    // 그대로 img가 담당하고 CSS는 손댈 게 없다.
+    const tap = document.createElement('label');
+    tap.htmlFor = 'hap'; tap.style.display = 'contents';
+    tap.appendChild(thumb);
+    grid.appendChild(tap);
   });
 });
 

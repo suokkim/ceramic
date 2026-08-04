@@ -198,7 +198,7 @@ function commit() {
 
 // 탭 햅틱. Android/데스크톱 크롬만 실제로 울린다 — iOS 사파리는 Vibration API 미지원이라
 // 조용히 무시된다(?.로 호출해 에러도 안 난다). 사용자가 진동을 꺼둔 경우도 마찬가지.
-const buzz = (ms = 10) => navigator.vibrate?.(ms);
+const buzz = (ms = 4) => navigator.vibrate?.(ms);
 
 // dir: -1 이전 / +1 다음 / 0 제자리 복귀. 확정은 transitionend가 아니라 타이머로 —
 // transitionend는 유실될 수 있고(예전에 그걸로 뷰어가 영구히 잠겼다) 타이머는 반드시 돈다.

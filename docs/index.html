@@ -182,12 +182,17 @@ function commit() {
   setX(0, false);
 }
 
+// 탭 햅틱. Android/데스크톱 크롬만 실제로 울린다 — iOS 사파리는 Vibration API 미지원이라
+// 조용히 무시된다(?.로 호출해 에러도 안 난다). 사용자가 진동을 꺼둔 경우도 마찬가지.
+const buzz = (ms = 10) => navigator.vibrate?.(ms);
+
 // dir: -1 이전 / +1 다음 / 0 제자리 복귀. 확정은 transitionend가 아니라 타이머로 —
 // transitionend는 유실될 수 있고(예전에 그걸로 뷰어가 영구히 잠겼다) 타이머는 반드시 돈다.
 function slideTo(dir) {
   if (!n) return;
   commit();
   if (!dir || n < 2) { setX(0, true); return; }
+  buzz();                           // 넘김이 확정될 때만 — 제자리 복귀는 조용히
   track.style.transition = EASE;
   track.style.transform = `translateX(${-100 - dir * 100}%)`;
   setFade(dir > 0 ? [DIM, DIM, 1] : [1, DIM, DIM], true);
@@ -219,6 +224,7 @@ const closeViewer = () => { unlockPage(); viewer.classList.remove('open'); };
 
 // 스크롤이 없으니 "열면 그 이미지"가 자명하다 — 위치 계산도, 고정도, 재정렬도 필요 없다.
 function openAt(i) {
+  buzz();
   commit();
   lockPage();
   cur = i;
@@ -280,6 +286,7 @@ addEventListener('mouseup', () => {
 // 탭/클릭(드래그가 아니었을 때만) → 닫기
 track.addEventListener('click', () => {
   if (tdrag || mdrag) { tdrag = mdrag = false; return; }
+  buzz();
   closeViewer();
 });
 
@@ -296,12 +303,15 @@ track.addEventListener('wheel', e => {
 
 // 로고 인터랙션: 누를 때마다 원↔사각형 앞뒤가 바뀐다.
 // SVG는 문서 순서대로 그리므로, 맨 앞 요소를 맨 뒤로 옮기면 앞뒤가 뒤집힌다.
-document.getElementById('logo').onclick = e =>
+document.getElementById('logo').onclick = e => {
+  buzz();
   e.currentTarget.appendChild(e.currentTarget.firstElementChild);
+};
 
 // 모아보기 토글 (아이콘 전환은 CSS가 aria-pressed를 보고 처리)
 document.getElementById('gridToggle').onclick = e => {
-  const on = document.getElementById('grid').classList.toggle('compact');
+  buzz();
+  const on =document.getElementById('grid').classList.toggle('compact');
   const btn = e.currentTarget;
   btn.setAttribute('aria-pressed', on);
   btn.setAttribute('aria-label', on ? '크게 보기' : '모아보기');

@@ -29,8 +29,15 @@
      stretch가 꺼져 내용물 크기로 쪼그라들고, 모바일에서 레이아웃이 통째로 무너진다 */
   header { width: 100%; max-width: 1100px; margin: 0 auto 3rem;
     display: flex; justify-content: space-between; align-items: center; }
+  /* iOS 햅틱 편법: 아이폰 사파리는 Vibration API가 없지만, 사용자가 직접 탭해서
+     <input type="checkbox" switch>가 토글되면 시스템 햅틱이 울린다(iOS 17.4+).
+     그래서 탭 대상을 label로 만들어 이 숨은 스위치를 건드리게 한다. 실제 탭에만
+     반응하므로 스와이프에는 못 쓴다. 화면에서 지우되(opacity) 렌더는 유지할 것 —
+     display:none이면 토글이 안 일어나 햅틱도 없다. */
+  #hap { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  #logoBtn { display: flex; cursor: pointer; }
   #gridToggle {
-    border: none; background: none; cursor: pointer; padding: 4px;
+    display: inline-flex; cursor: pointer; padding: 4px;
     color: #b3afa9; /* 메인 아이콘보다 눈에 띄지 않게, 원(#b5b5b5) 톤에 맞춤 */
     line-height: 0;
   }
@@ -97,12 +104,16 @@
 </head>
 <body>
 <header>
-  <svg id="logo" width="56" height="56" viewBox="0 0 56 56" aria-label="Ceramic" style="cursor:pointer">
-    <!-- 블랙 사각형 + 회색 원 겹침 (스케치 참고), 외곽선 없음. 클릭하면 앞뒤가 바뀐다 -->
-    <rect x="24" y="8" width="26" height="26" fill="#3a3a3a"/>
-    <circle cx="24" cy="30" r="16" fill="#b5b5b5"/>
-  </svg>
-  <button id="gridToggle" aria-pressed="false" aria-label="모아보기">
+  <!-- 아이폰 햅틱용 숨은 스위치. 아래 label 두 개가 이걸 토글해 진동을 일으킨다 -->
+  <input type="checkbox" switch id="hap" tabindex="-1" aria-hidden="true">
+  <label for="hap" id="logoBtn" aria-label="Ceramic">
+    <svg id="logo" width="56" height="56" viewBox="0 0 56 56">
+      <!-- 블랙 사각형 + 회색 원 겹침 (스케치 참고), 외곽선 없음. 클릭하면 앞뒤가 바뀐다 -->
+      <rect x="24" y="8" width="26" height="26" fill="#3a3a3a"/>
+      <circle cx="24" cy="30" r="16" fill="#b5b5b5"/>
+    </svg>
+  </label>
+  <label for="hap" id="gridToggle" role="button" tabindex="0" aria-pressed="false" aria-label="모아보기">
     <!-- 모아보기: 3×3 사각 점 -->
     <svg class="ico-grid" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
       <rect x="0" y="0" width="5" height="5"/><rect x="6.5" y="0" width="5" height="5"/><rect x="13" y="0" width="5" height="5"/>
@@ -113,7 +124,7 @@
     <svg class="ico-big" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
       <path d="M18 0 v18 a0 0 0 0 1 0 0 h-14 a4 4 0 0 1 -4 -4 v-10 a4 4 0 0 1 4 -4 z"/>
     </svg>
-  </button>
+  </label>
 </header>
 <div class="grid" id="grid"></div>
 <div id="viewer" role="dialog" aria-modal="true"><div id="track"></div></div>
@@ -303,9 +314,10 @@ track.addEventListener('wheel', e => {
 
 // 로고 인터랙션: 누를 때마다 원↔사각형 앞뒤가 바뀐다.
 // SVG는 문서 순서대로 그리므로, 맨 앞 요소를 맨 뒤로 옮기면 앞뒤가 뒤집힌다.
-document.getElementById('logo').onclick = e => {
+document.getElementById('logoBtn').onclick = () => {
   buzz();
-  e.currentTarget.appendChild(e.currentTarget.firstElementChild);
+  const svg = document.getElementById('logo');
+  svg.appendChild(svg.firstElementChild);
 };
 
 // 모아보기 토글 (아이콘 전환은 CSS가 aria-pressed를 보고 처리)
@@ -315,6 +327,10 @@ document.getElementById('gridToggle').onclick = e => {
   const btn = e.currentTarget;
   btn.setAttribute('aria-pressed', on);
   btn.setAttribute('aria-label', on ? '크게 보기' : '모아보기');
+};
+// label은 button과 달리 키보드 활성화가 없으니 직접 붙인다
+document.getElementById('gridToggle').onkeydown = e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
 };
 
 document.onkeydown = e => {

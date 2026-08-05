@@ -17,4 +17,4 @@ git add -A
 # 바뀐 게 없으면 조용히 끝낸다 — 이 스크립트가 png/를 손대며 자신을 다시 부를 수 있어서,
 # 여기서 멈춰야 무한 반복이 되지 않는다.
 git diff --cached --quiet && exit 0
-git commit -q -m "Add work $(date +%Y-%m-%d)" && git push -q && echo "푸시 완료: $(date)"
+git commit -q -m "Sync works $(date +%Y-%m-%d)" && git push -q && echo "푸시 완료: $(date)"

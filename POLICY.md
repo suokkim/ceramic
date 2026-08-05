@@ -20,6 +20,16 @@
   일련번호는 날짜와 무관하게 계속 증가한다 — 매일 `s01`로 되돌리면 내보낸 PNG가
   이전 작품의 수정본으로 오인된다(3절 참조).
 - 규격을 바꾸려면 `newdoc.sh`의 `TPL` 경로를 다른 템플릿으로 바꾸면 된다.
+- 같은 날 하나 더 만들려면 `./newdoc.sh -n`. 인자 없이 실행하면 오늘 것이 이미 있을 때
+  새로 만들지 않고 열기만 한다(자동 실행이 여러 번 돌아도 안전하게).
+
+### 매일 아침 8시 자동 실행 (설정 완료)
+- `~/Library/LaunchAgents/com.ceramic.newdoc.plist` — 매일 08:00에 실행. 로그 `/tmp/ceramic-newdoc.log`.
+- **스크립트를 직접 돌리지 않고 `~/Applications/Ceramic 새 작업.app`을 `open`으로 띄운다.**
+  launchd가 `/bin/sh`로 직접 실행하면 macOS가 `~/Documents` 접근을 막아
+  (`Operation not permitted`) 아무것도 못 한다. 앱을 거치면 권한 주체가 앱이 되어 통과한다.
+- 끄기: `launchctl bootout gui/$UID/com.ceramic.newdoc`
+  다시 켜기: `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.newdoc.plist`
 
 ## 3. 이미지 업로드 정책
 - **포맷: PNG만.** JPG 등 다른 포맷 금지.

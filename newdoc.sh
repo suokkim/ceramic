@@ -4,15 +4,29 @@
 #       (흰 배경 레이어 + 빈 그림 레이어 2장 구성. 새 문서 대화상자를 거칠 필요가 없다)
 # 이름: MMDD_sNN.kra — 앞은 만든 날짜, 뒤 sNN은 작품 일련번호(날짜와 무관하게 계속 증가).
 #       일련번호를 매일 s01로 되돌리면 내보낸 PNG가 이전 작품의 수정본으로 오인된다.
+#
+# 사용법: ./newdoc.sh      오늘 캔버스가 이미 있으면 그걸 열기만 한다(매일 자동 실행용)
+#         ./newdoc.sh -n   같은 날에도 캔버스를 하나 더 만든다
 cd "$(dirname "$0")"
 
 TPL="/Applications/krita.app/Contents/Resources/krita/templates/design/.source/DesignpresentationA4portrait_2480x3508_300dpiRGB_8bit_.kra"
 [ -f "$TPL" ] || { echo "템플릿을 못 찾음: $TPL"; exit 1; }
 
+today=$(date +%m%d)
+
+# 자동 실행이 하루에 여러 번 돌아도 캔버스가 늘어나지 않게, 오늘 것이 있으면 그것만 연다
+if [ "$1" != "-n" ]; then
+  existing=$(ls kra 2>/dev/null | grep "^${today}_s[0-9][0-9]\.kra$" | sort | tail -1)
+  if [ -n "$existing" ]; then
+    open -a krita "kra/$existing"
+    echo "오늘 캔버스 이미 있음: kra/$existing (새로 만들려면 ./newdoc.sh -n)"
+    exit 0
+  fi
+fi
+
 # kra/에서 가장 큰 sNN을 찾아 +1 (앞의 0은 떼야 8·9가 8진수로 오해받지 않는다)
 last=$(ls kra 2>/dev/null | sed -n 's/.*_s\([0-9][0-9]\)\.kra$/\1/p' | sort -n | tail -1 | sed 's/^0//')
-out="kra/$(date +%m%d)_s$(printf '%02d' $(( ${last:-0} + 1 ))).kra"
-[ -e "$out" ] && { echo "이미 있음: $out"; exit 1; }
+out="kra/${today}_s$(printf '%02d' $(( ${last:-0} + 1 ))).kra"
 
 cp "$TPL" "$out"
 open -a krita "$out"

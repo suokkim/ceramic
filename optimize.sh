@@ -30,20 +30,33 @@ for f in png/*.png; do
   next=$((next+1))
 done
 
-# 웹용 이미지 전체 재생성 (삭제/이름변경 반영)
-rm -f docs/images/*.png
+# 웹용 이미지 생성 — 원본이 바뀐 것만.
+# sips 출력은 같은 입력이라도 실행할 때마다 바이트가 달라진다(내부 타임스탬프). 매번
+# 전부 다시 만들면 바뀐 게 없어도 git에 2MB짜리 변경이 계속 쌓이므로 원본 해시로 거른다.
+: > docs/.imghash.new
 for f in png/*.png; do
-  out="docs/images/$(basename "$f")"
-  cp "$f" "$out"
-  sips -Z 1600 "$out" >/dev/null
+  base=$(basename "$f"); h=$(md5 -q "$f")
+  old=$(grep "^$base " docs/.imghash 2>/dev/null | cut -d' ' -f2)
+  if [ "$h" != "$old" ] || [ ! -f "docs/images/$base" ]; then
+    cp "$f" "docs/images/$base"
+    sips -Z 1600 "docs/images/$base" >/dev/null
+  fi
+  echo "$base $h" >> docs/.imghash.new
 done
-# 최근 작업(큰 번호)이 먼저 보이도록 역순 정렬, 파일 해시를 ?v=로 붙여 수정 시 캐시 자동 무효화
+mv docs/.imghash.new docs/.imghash
+# 원본에서 사라진 웹 이미지 정리 (삭제·이름변경 반영)
+for w in docs/images/*.png; do
+  [ -f "png/$(basename "$w")" ] || rm -f "$w"
+done
+# 최근 작업(큰 번호)이 먼저 보이도록 역순 정렬. ?v=는 **원본** 해시라 실행할 때마다
+# 흔들리지 않고, 그림을 실제로 고쳤을 때만 바뀌어 캐시를 무효화한다.
 python3 -c '
 import json, glob, os, hashlib
 entries = []
 for p in sorted(glob.glob("docs/images/*.png"), reverse=True):
-    h = hashlib.md5(open(p, "rb").read()).hexdigest()[:8]
-    entries.append(os.path.basename(p) + "?v=" + h)
+    name = os.path.basename(p)
+    h = hashlib.md5(open("png/" + name, "rb").read()).hexdigest()[:8]
+    entries.append(name + "?v=" + h)
 print(json.dumps(entries, ensure_ascii=False))
 ' > docs/images.json
 

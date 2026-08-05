@@ -4,19 +4,30 @@
 cd "$(dirname "$0")"
 mkdir -p docs/images
 
-# 넘버링 없는 파일에 다음 번호 자동 부여
-next=$(ls png | grep -E '^[0-9]{2}_' | sort | tail -1 | cut -c1-2 | sed 's/^0//')
+# 파일명은 NN.png 하나뿐. Krita가 붙이는 0806_ 같은 날짜 접두어는 떼어낸다.
+#   0806_08.png → 08.png   (kra에서 미리 정해둔 번호를 그대로 쓴다. 이미 08.png가
+#                           있으면 수정본이므로 덮어쓴다 — 이게 재수출 절차 전부다)
+#   이름만 있는 파일  → 맨 뒤 번호를 새로 부여
+# 1단계: 번호를 이미 갖고 있는 파일부터 처리한다. 순서가 중요하다 —
+#        나중에 부여할 번호가 이미 쓰인 번호를 덮어쓰지 않게 하려면 이쪽이 먼저다.
+for f in png/*.png; do
+  base=$(basename "$f")
+  case "$base" in [0-9][0-9].png) continue ;; esac
+  stripped=$(printf '%s' "$base" | sed 's/^[0-9][0-9]*_//')
+  case "$stripped" in [0-9][0-9].png)
+    mv -f "$f" "png/$stripped"; echo "이름 정리: $base → $stripped" ;;
+  esac
+done
+# 2단계: 번호가 없는 파일에 맨 뒤 번호를 부여
+next=$(ls png | grep -E '^[0-9]{2}\.png$' | sort | tail -1 | cut -c1-2 | sed 's/^0//')
 next=$(( ${next:-0} + 1 ))
 for f in png/*.png; do
   base=$(basename "$f")
-  case "$base" in
-    [0-9][0-9]_*) ;;
-    # Krita가 붙이는 0802_ 같은 날짜 접두어는 떼고 번호를 준다 (05_0802_이름.png 방지)
-    *) new="$(printf '%02d' "$next")_$(printf '%s' "$base" | sed 's/^[0-9][0-9]*_//')"
-       mv "$f" "png/$new"
-       echo "넘버링 추가: $base → $new"
-       next=$((next+1)) ;;
-  esac
+  case "$base" in [0-9][0-9].png) continue ;; esac
+  new="$(printf '%02d' "$next").png"
+  mv -f "$f" "png/$new"
+  echo "넘버링 추가: $base → $new"
+  next=$((next+1))
 done
 
 # 웹용 이미지 전체 재생성 (삭제/이름변경 반영)

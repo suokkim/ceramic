@@ -7,7 +7,7 @@
 # 새 번호를 받는다(실제로 겪었다). 이름은 그대로 두고 번호만 읽어 docs/에 복사한다.
 # 공개되는 웹용만 번호로 통일한다 — 갤러리 순서가 파일명 정렬이라 날짜가 끼면 꼬인다.
 cd "$(dirname "$0")"
-mkdir -p docs/images
+mkdir -p docs/images/th
 
 # 파일명에서 번호 읽기. 0806_08.png → 08, 08.png → 08, 0806_s08.png → 08(옛 이름).
 # 못 읽으면 빈 값.
@@ -41,19 +41,25 @@ map=$(for f in $(ls -tr png/*.png 2>/dev/null); do
 echo "$map" | while read -r n f; do
   [ -z "$n" ] && continue
   out="docs/images/$n.png"
+  th="docs/images/th/$n.png"
   h=$(md5 -q "$f")
   old=$(grep "^$n.png " docs/.imghash 2>/dev/null | cut -d' ' -f2)
-  if [ "$h" != "$old" ] || [ ! -f "$out" ]; then
+  if [ "$h" != "$old" ] || [ ! -f "$out" ] || [ ! -f "$th" ]; then
     cp "$f" "$out"
     sips -Z 1600 "$out" >/dev/null
+    # 대문 그리드용 썸네일. 칸 폭이 250px 남짓이라 600px면 레티나에서도 충분하고,
+    # 원본을 그대로 받을 때보다 3~5배 가볍다 (첫 로딩 2.2MB → 0.7MB).
+    cp "$out" "$th"
+    sips -Z 600 "$th" >/dev/null
   fi
   echo "$n.png $h" >> docs/.imghash.new
 done
 mv docs/.imghash.new docs/.imghash
 
-# 원본에서 사라진 웹 이미지 정리 (삭제 반영)
+# 원본에서 사라진 웹 이미지 정리 (삭제 반영) — 썸네일도 같이
 for w in docs/images/*.png; do
-  grep -q "^$(basename "$w") " docs/.imghash || rm -f "$w"
+  b=$(basename "$w")
+  grep -q "^$b " docs/.imghash || rm -f "$w" "docs/images/th/$b"
 done
 
 # 최근 작업(큰 번호)이 먼저 보이도록 역순 정렬. ?v=는 **원본** 해시라 실행할 때마다
@@ -68,8 +74,9 @@ entries.sort(reverse=True)
 print(json.dumps(entries, ensure_ascii=False))
 ' > docs/images.json
 
-# 링크 공유 미리보기 이미지를 최신 작품(가장 큰 번호)으로 갱신
-newest=$(ls docs/images | sort | tail -1)
+# 링크 공유 미리보기 이미지를 최신 작품(가장 큰 번호)으로 갱신.
+# ls docs/images가 아니라 .imghash를 읽는다 — 디렉터리(th)가 끼면 그게 tail -1로 잡힌다.
+newest=$(cut -d' ' -f1 docs/.imghash | sort | tail -1)
 sed -i '' "s|\(og:image\" content=\"https://suokkim.github.io/ceramic/images/\)[^\"]*|\1$newest|" docs/index.html
 
-echo "완료: $(ls docs/images | wc -l | tr -d ' ')개 이미지, 공유 이미지: $newest"
+echo "완료: $(ls docs/images/*.png | wc -l | tr -d ' ')개 이미지, 공유 이미지: $newest"

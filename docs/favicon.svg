@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56">
+  <!-- 배경은 불투명해야 한다. 투명하면 밝은 탭바·홈 화면에서 흰 원이 사라지고,
+       iOS 홈 화면은 투명한 곳을 검게 메워 그림이 깨진다 -->
+  <rect width="56" height="56" fill="#3a3a3a"/>
   <rect x="24" y="8" width="26" height="26" fill="#7f7f7f"/>
   <circle cx="24" cy="30" r="16" fill="#ffffff"/>
 </svg>

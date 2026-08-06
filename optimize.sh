@@ -13,7 +13,10 @@ mkdir -p docs/images
 for f in png/*.png; do
   base=$(basename "$f")
   case "$base" in [0-9][0-9].png) continue ;; esac
-  stripped=$(printf '%s' "$base" | sed 's/^[0-9][0-9]*_//')
+  # 날짜 접두어를 떼고, 예전 규칙의 s도 떼어본다 — Krita에 열려 있던 문서는 옛 이름
+  # (0806_s08.kra)으로 저장되므로 내보내기도 s가 붙어 나온다. 이걸 못 읽으면 같은
+  # 작품이 새 번호를 받아 갤러리에 두 번 올라간다(실제로 겪음).
+  stripped=$(printf '%s' "$base" | sed 's/^[0-9][0-9]*_//; s/^s//')
   case "$stripped" in [0-9][0-9].png)
     mv -f "$f" "png/$stripped"; echo "이름 정리: $base → $stripped" ;;
   esac

@@ -29,7 +29,7 @@ fi
 # 다음 번호 = 갤러리 마지막 번호와 아직 안 내보낸 kra 번호 중 큰 값 + 1
 # (앞의 0은 떼야 08·09가 8진수로 오해받지 않는다)
 lastpng=$(ls png 2>/dev/null | sed -n 's/^\([0-9][0-9]\)\.png$/\1/p'       | sort -n | tail -1 | sed 's/^0//')
-lastkra=$(ls kra 2>/dev/null | sed -n 's/^[0-9]*_\([0-9][0-9]\)\.kra$/\1/p' | sort -n | tail -1 | sed 's/^0//')
+lastkra=$(ls kra 2>/dev/null | sed -n 's/^[0-9]*_s\{0,1\}\([0-9][0-9]\)\.kra$/\1/p' | sort -n | tail -1 | sed 's/^0//')
 last=$(( ${lastpng:-0} > ${lastkra:-0} ? ${lastpng:-0} : ${lastkra:-0} ))
 out="kra/${today}_$(printf '%02d' $(( last + 1 ))).kra"
 

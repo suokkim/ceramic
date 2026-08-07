@@ -146,7 +146,9 @@
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
-let names = [], n = 0, cur = 0;   // cur = 지금 보이는 이미지 인덱스
+// names = 지금 화면에 그려진 순서(섞이면 바뀜), original = images.json 원본 순서(최신순).
+// 큰 보기로 돌아올 때 최신순을 복원해야 해서 원본을 따로 들고 있는다.
+let names = [], original = [], n = 0, cur = 0;   // cur = 지금 보이는 이미지 인덱스
 
 const srcOf = name => 'images/' + name;
 const altOf = name => name.split('?')[0].replace('.png', '');
@@ -244,17 +246,23 @@ function renderGrid() {
   });
 }
 
-// Fisher-Yates. 다시 그려도 이미지는 브라우저 캐시에 있어 네트워크를 안 탄다.
-function shuffleGrid() {
+// Fisher-Yates.
+function shuffleNames() {
   for (let i = names.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [names[i], names[j]] = [names[j], names[i]];
   }
-  renderGrid();
 }
+// 다시 그려도 이미지는 브라우저 캐시에 있어 네트워크를 안 탄다.
+const shuffleGrid = () => { shuffleNames(); renderGrid(); };
+
+const isCompact = () => document.getElementById('grid').classList.contains('compact');
 
 fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
-  names = list; n = list.length;
+  original = list; names = list.slice(); n = list.length;
+  // 모아보기로 시작하면 순서도 무작위 — 들어오거나 새로고침할 때마다 새 조합이 된다.
+  // 큰 보기는 최신순을 지킨다. (렌더는 한 번만 — 섞고 나서 그린다)
+  if (isCompact()) shuffleNames();
   renderGrid();
 });
 
@@ -357,8 +365,7 @@ document.getElementById('logoBtn').onclick = () => {
   svg.appendChild(svg.firstElementChild);
   // 모아보기에서만 순서도 섞는다 — 전체 톤을 매번 새 조합으로 보는 용도.
   // 큰 보기는 최신순(번호 역순)이 의미를 가지므로 건드리지 않는다.
-  // 새로고침하면 images.json 순서로 되돌아간다.
-  if (document.getElementById('grid').classList.contains('compact')) shuffleGrid();
+  if (isCompact()) shuffleGrid();
 };
 
 // 모아보기 토글 (아이콘 전환은 CSS가 aria-pressed를 보고 처리)
@@ -377,7 +384,12 @@ setCompact(matchMedia('(max-width: 600px)').matches);
 
 toggleBtn.onclick = () => {
   buzz();
-  setCompact(!gridEl.classList.contains('compact'));
+  const on = !isCompact();
+  setCompact(on);
+  // 모아보기로 들어갈 때마다 새 조합, 큰 보기로 나오면 최신순 복귀.
+  // 덕분에 "모아보기 = 랜덤"이 새로고침·로고·토글 세 경로에서 똑같이 성립한다.
+  if (on) shuffleNames(); else names = original.slice();
+  renderGrid();
 };
 // label은 button과 달리 키보드 활성화가 없으니 직접 붙인다
 document.getElementById('gridToggle').onkeydown = e => {

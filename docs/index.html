@@ -224,10 +224,12 @@ function slideTo(dir) {
   pending = {dir, timer: setTimeout(commit, 720)};
 }
 
-fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
-  names = list; n = list.length;
+// 그리드는 names 순서 그대로 그린다. 확대 보기도 같은 names를 보므로 화면 순서와
+// 스와이프 순서가 절대 어긋나지 않는다 — 섞을 때 DOM만 뒤집으면 여기가 깨진다.
+function renderGrid() {
   const grid = document.getElementById('grid');
-  list.forEach((name, i) => {
+  grid.replaceChildren();
+  names.forEach((name, i) => {
     const thumb = new Image();
     // 대문은 600px 썸네일(th/)만 받는다. 원본은 뷰어에서 열 때만 — 개수가 늘어도
     // 첫 로딩이 무거워지지 않는 유일한 지점이다.
@@ -240,6 +242,20 @@ fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
     tap.appendChild(thumb);
     grid.appendChild(tap);
   });
+}
+
+// Fisher-Yates. 다시 그려도 이미지는 브라우저 캐시에 있어 네트워크를 안 탄다.
+function shuffleGrid() {
+  for (let i = names.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [names[i], names[j]] = [names[j], names[i]];
+  }
+  renderGrid();
+}
+
+fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
+  names = list; n = list.length;
+  renderGrid();
 });
 
 // 배경 잠금. body position:fixed는 절대 금지 — iOS는 body가 큰 음수 top으로 고정되면
@@ -339,6 +355,10 @@ document.getElementById('logoBtn').onclick = () => {
   buzz();
   const svg = document.getElementById('logo');
   svg.appendChild(svg.firstElementChild);
+  // 모아보기에서만 순서도 섞는다 — 전체 톤을 매번 새 조합으로 보는 용도.
+  // 큰 보기는 최신순(번호 역순)이 의미를 가지므로 건드리지 않는다.
+  // 새로고침하면 images.json 순서로 되돌아간다.
+  if (document.getElementById('grid').classList.contains('compact')) shuffleGrid();
 };
 
 // 모아보기 토글 (아이콘 전환은 CSS가 aria-pressed를 보고 처리)

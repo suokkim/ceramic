@@ -15,7 +15,7 @@
 <meta property="og:title" content="동글사각 | CIRCLE SQUARE">
 <meta property="og:description" content="세라믹 도자기 컨셉 디자인 갤러리">
 <meta property="og:url" content="https://suokkim.github.io/ceramic/">
-<meta property="og:image" content="https://suokkim.github.io/ceramic/images/11.png">
+<meta property="og:image" content="https://suokkim.github.io/ceramic/images/12.png">
 <meta name="twitter:card" content="summary_large_image">
 <style>
   :root { color-scheme: light; }
@@ -342,12 +342,22 @@ document.getElementById('logoBtn').onclick = () => {
 };
 
 // 모아보기 토글 (아이콘 전환은 CSS가 aria-pressed를 보고 처리)
-document.getElementById('gridToggle').onclick = e => {
+const gridEl = document.getElementById('grid');
+const toggleBtn = document.getElementById('gridToggle');
+function setCompact(on) {
+  gridEl.classList.toggle('compact', on);
+  toggleBtn.setAttribute('aria-pressed', on);
+  toggleBtn.setAttribute('aria-label', on ? '크게 보기' : '모아보기');
+}
+// 기본 뷰는 화면 폭으로만 정한다: 폰은 모아보기, 그 위는 큰 보기.
+// 600px 아래면 큰 보기가 1열이라 스크롤만 길어지고 전체 톤이 안 보인다.
+// 최초 1회만 — matchMedia를 구독하면 사용자가 직접 고른 뷰를 창 크기 조절이
+// 덮어써 버린다. 한 번 누른 선택은 끝까지 존중.
+setCompact(matchMedia('(max-width: 600px)').matches);
+
+toggleBtn.onclick = () => {
   buzz();
-  const on =document.getElementById('grid').classList.toggle('compact');
-  const btn = e.currentTarget;
-  btn.setAttribute('aria-pressed', on);
-  btn.setAttribute('aria-label', on ? '크게 보기' : '모아보기');
+  setCompact(!gridEl.classList.contains('compact'));
 };
 // label은 button과 달리 키보드 활성화가 없으니 직접 붙인다
 document.getElementById('gridToggle').onkeydown = e => {

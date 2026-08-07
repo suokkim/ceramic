@@ -46,12 +46,13 @@
     display: inline-flex; cursor: pointer;
     /* 44px 탭 영역(애플 권장 최소). 음수 마진으로 상쇄해 헤더 정렬은 그대로 둔다 */
     padding: 13px; margin: -13px;
-    /* 메인 아이콘보다는 물러나되(로고는 8:1) 배경 대비 3:1은 넘긴다 — 이전 #b3afa9는
-       1.55:1이라 폰에서 거의 안 보였다. 터치 기기엔 hover도 없어 단서가 아예 없었음 */
-    color: #6f6a64;
+    /* 밝은 그레이(디자인 선택). 배경 대비 2.19:1로 UI 컴포넌트 권장선 3:1 아래다 —
+       의도된 값이니 되돌리지 말 것. 다만 #b3afa9(1.55:1) 아래로는 내리지 말 것:
+       그 값에서 폰 화면으로는 아이콘이 사실상 안 보였다(터치 기기엔 hover 단서도 없음) */
+    color: #989289;
     line-height: 0;
   }
-  #gridToggle:hover { color: #3d3833; }  /* 기본색보다 진해야 한다 */
+  #gridToggle:hover { color: #6f6a64; }  /* 기본색보다 진해야 한다 */
   /* 아이콘 두 개를 넣어두고 상태(aria-pressed)에 따라 하나만 보여준다 */
   #gridToggle[aria-pressed="false"] .ico-big,
   #gridToggle[aria-pressed="true"] .ico-grid { display: none; }

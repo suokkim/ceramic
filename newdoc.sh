@@ -26,11 +26,14 @@ if [ "$1" != "-n" ]; then
   fi
 fi
 
-# 다음 번호 = 갤러리 마지막 번호와 아직 안 내보낸 kra 번호 중 큰 값 + 1
-# (앞의 0은 떼야 08·09가 8진수로 오해받지 않는다)
-lastpng=$(ls png 2>/dev/null | sed -n 's/^\([0-9][0-9]\)\.png$/\1/p'       | sort -n | tail -1 | sed 's/^0//')
-lastkra=$(ls kra 2>/dev/null | sed -n 's/^[0-9]*_s\{0,1\}\([0-9][0-9]\)\.kra$/\1/p' | sort -n | tail -1 | sed 's/^0//')
-last=$(( ${lastpng:-0} > ${lastkra:-0} ? ${lastpng:-0} : ${lastkra:-0} ))
+# 다음 번호 = 내보낸 png의 마지막 번호와 아직 안 내보낸 kra 번호 중 큰 값 + 1.
+# png/를 반드시 봐야 한다 — 하루에 여러 장을 내보내면 kra 하나에 png가 여러 개라
+# kra만 보면 이미 쓴 번호를 다시 발급한다(실제로 0807_12까지 있는데 0808_10을 만들었다).
+# 번호 읽는 규칙은 optimize.sh와 공유한다. 여기서 따로 정규식을 쓰지 말 것.
+. ./numof.sh
+lastpng=$(maxnum png png)
+lastkra=$(maxnum kra kra)
+last=$(( lastpng > lastkra ? lastpng : lastkra ))
 out="kra/${today}_$(printf '%02d' $(( last + 1 ))).kra"
 
 cp "$TPL" "$out"

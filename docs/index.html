@@ -52,7 +52,9 @@
     color: #989289;
     line-height: 0;
   }
-  #gridToggle:hover { color: #6f6a64; }  /* 기본색보다 진해야 한다 */
+  /* :hover 상태색은 두지 않는다 — 터치 기기는 탭하면 hover가 걸린 채로 남아서
+     다른 곳을 누를 때까지 색이 달라 보인다(아이콘이 두 가지 색으로 보이던 원인).
+     되살릴 거면 반드시 @media (hover: hover)로 감쌀 것. */
   /* 아이콘 두 개를 넣어두고 상태(aria-pressed)에 따라 하나만 보여준다 */
   #gridToggle[aria-pressed="false"] .ico-big,
   #gridToggle[aria-pressed="true"] .ico-grid { display: none; }

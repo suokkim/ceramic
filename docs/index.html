@@ -68,8 +68,10 @@
     /* 원본이 전부 A4 300dpi(2480x3508)라 비율이 고정. 이미지가 도착하기 전에
        자리를 미리 잡아줘서 로딩 중 스크롤이 튀지 않는다 */
     aspect-ratio: 2480 / 3508;
-    /* 예전엔 brightness(.9)로 화이트를 눌렀다. 지금은 원본 그대로 — 되살리려면
-       여기에 filter를 다시 넣으면 되고, 파일은 어느 쪽이든 손대지 않는다 */
+    /* 배경 화이트만 0.9로 누른다. brightness(.9)는 전 구간을 곱해서 도자기까지
+       어두워졌지만, 이건 밝은 20%만 압축하는 톤 커브라 오브제는 원래 밝기 그대로다.
+       정의는 아래 <svg id="filters">. 원본 파일은 어느 쪽이든 안 바뀐다 */
+    filter: url(#dimWhite);
     border-radius: 14px; border-top-right-radius: 0; /* 2시 방향만 각짐 */
   }
   /* 모아보기: 인스타그램식 3열 정사각 그리드. 전체 톤의 통일성을 한눈에 보는 용도.
@@ -120,6 +122,21 @@
 </style>
 </head>
 <body>
+<!-- 그리드 썸네일용 톤 커브. 입력 0·0.2·0.4·0.6·0.8·1.0 을 각각 그 값으로 내보내되
+     맨 끝 1.0만 0.9로 낮춘다 → 0.8 아래는 손대지 않고(도자기·그림자 그대로),
+     0.8~1.0 구간만 0.8~0.9로 눌려 흰 종이 배경이 가라앉는다.
+     color-interpolation-filters="sRGB" 필수 — 기본값 linearRGB로 두면 중간톤까지
+     같이 어두워져서 brightness(.9)와 다를 바 없어진다. -->
+<svg id="filters" width="0" height="0" aria-hidden="true" focusable="false"
+     style="position:absolute">
+  <filter id="dimWhite" color-interpolation-filters="sRGB">
+    <feComponentTransfer>
+      <feFuncR type="table" tableValues="0 0.2 0.4 0.6 0.8 0.9"/>
+      <feFuncG type="table" tableValues="0 0.2 0.4 0.6 0.8 0.9"/>
+      <feFuncB type="table" tableValues="0 0.2 0.4 0.6 0.8 0.9"/>
+    </feComponentTransfer>
+  </filter>
+</svg>
 <header>
   <!-- 아이폰 햅틱용 숨은 스위치. 아래 label 두 개가 이걸 토글해 진동을 일으킨다 -->
   <input type="checkbox" switch id="hap" tabindex="-1" aria-hidden="true">

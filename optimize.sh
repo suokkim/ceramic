@@ -37,26 +37,31 @@ map=$(for f in $(ls -tr png/*.png 2>/dev/null); do
 echo "$map" | while read -r n f; do
   [ -z "$n" ] && continue
   out="docs/images/$n.png"
-  th="docs/images/th/$n.png"
+  th="docs/images/th/$n.jpg"
   h=$(md5 -q "$f")
   old=$(grep "^$n.png " docs/.imghash 2>/dev/null | cut -d' ' -f2)
   if [ "$h" != "$old" ] || [ ! -f "$out" ] || [ ! -f "$th" ]; then
     cp "$f" "$out"
     sips -Z 1600 "$out" >/dev/null
-    # 대문 그리드용 썸네일. 칸 폭이 250px 남짓이라 600px면 레티나에서도 충분하고,
-    # 원본을 그대로 받을 때보다 3~5배 가볍다 (첫 로딩 2.2MB → 0.7MB).
-    cp "$out" "$th"
-    sips -Z 600 "$th" >/dev/null
+    # 대문 그리드용 썸네일. 칸 폭이 250px 남짓이라 600px면 레티나에서도 충분하다.
+    # **JPEG인 이유**: 모아보기가 기본이 되면서 그리드 전체가 한 화면에 들어와
+    # loading=lazy가 무력해졌고, 15장 1.06MB를 첫 로딩에 전부 받았다. 같은 크기
+    # JPEG q82면 0.40MB — 화질 손실은 배경 오차 0, 오브제 ±1로 눈에 안 보인다.
+    # 공개 원본(docs/images/)과 png/는 PNG 그대로. 썸네일만 JPEG다.
+    # 축소와 변환을 한 번에 — 나눠서 하면 JPEG로 인코딩한 걸 다시 인코딩하게 된다
+    sips -Z 600 -s format jpeg -s formatOptions 82 "$out" --out "$th" >/dev/null
   fi
   echo "$n.png $h" >> docs/.imghash.new
 done
 mv docs/.imghash.new docs/.imghash
 
-# 원본에서 사라진 웹 이미지 정리 (삭제 반영) — 썸네일도 같이
+# 원본에서 사라진 웹 이미지 정리 (삭제 반영) — 썸네일(.jpg)도 같이
 for w in docs/images/*.png; do
   b=$(basename "$w")
-  grep -q "^$b " docs/.imghash || rm -f "$w" "docs/images/th/$b"
+  grep -q "^$b " docs/.imghash || rm -f "$w" "docs/images/th/${b%.png}.jpg"
 done
+# 옛 PNG 썸네일 잔여물 정리 (JPEG 전환 전에 만들어진 것)
+rm -f docs/images/th/*.png
 
 # 최근 작업(큰 번호)이 먼저 보이도록 역순 정렬. ?v=는 **원본** 해시라 실행할 때마다
 # 흔들리지 않고, 그림을 실제로 고쳤을 때만 바뀌어 캐시를 무효화한다.

@@ -258,7 +258,10 @@ function renderGrid() {
     const thumb = new Image();
     // 대문은 600px 썸네일(th/)만 받는다. 원본은 뷰어에서 열 때만 — 개수가 늘어도
     // 첫 로딩이 무거워지지 않는 유일한 지점이다.
-    thumb.src = 'images/th/' + name; thumb.alt = altOf(name); thumb.loading = 'lazy';
+    // 썸네일만 JPEG다(용량). images.json은 원본 이름(NN.png?v=…)을 들고 있으므로
+    // 확장자만 바꿔 쓴다 — ?v= 캐시 무효화는 그대로 붙는다.
+    thumb.src = 'images/th/' + name.replace('.png', '.jpg');
+    thumb.alt = altOf(name); thumb.loading = 'lazy';
     thumb.onclick = () => openAt(i);
     // 썸네일도 label로 감싸야 아이폰에서 진동한다. display:contents라 그리드 배치는
     // 그대로 img가 담당하고 CSS는 손댈 게 없다.

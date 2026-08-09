@@ -422,7 +422,7 @@ document.getElementById('logoBtn').onclick = () => {
 // 모아보기 토글. 상태는 열 수 하나로 표현한다: 0 = 큰 보기, 3~10 = 모아보기 열 수.
 // 누를 때마다 0 → 3 → 4 → … → 10 → 0 으로 한 바퀴 돈다.
 const MIN_COLS = 3, MAX_COLS = 10;
-const SIL_FULL = 6;   // 이 열 수부터 실루엣 100% (3열 0% → 4·5열 점진 → 6열부터 완전)
+const SIL_FULL = 8;   // 이 열 수부터 실루엣 100% (3열 0% → 4~7열 점진 → 8열부터 완전)
 const STEPS = MAX_COLS - MIN_COLS + 1;   // 3열부터 큰 보기까지 순환 단계 수
 const gridEl = document.getElementById('grid');
 const toggleBtn = document.getElementById('gridToggle');

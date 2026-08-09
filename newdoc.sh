@@ -38,6 +38,22 @@ lastkra=$(maxnum kra kra)
 last=$(( lastpng > lastkra ? lastpng : lastkra ))
 out="kra/${today}_$(printf '%02d' $(( last + 1 ))).kra"
 
-cp "$TPL" "$out"
+# 템플릿의 자리표시자 그룹 이름(0000_00)을 실제 번호로 바꿔서 복사한다.
+# .kra는 zip이라 maindoc.xml만 고쳐 다시 싼다 — 그룹 이름이 곧 갤러리 번호라서
+# (krita-export-sil.py가 그룹 이름으로 내보낼 파일명을 정한다) 여기서 미리 심는다.
+name=$(basename "$out" .kra)
+python3 - "$TPL" "$out" "$name" << 'EOF'
+import sys, zipfile
+tpl, out, name = sys.argv[1:4]
+src = zipfile.ZipFile(tpl)
+with zipfile.ZipFile(out, 'w') as dst:
+    for item in src.infolist():
+        data = src.read(item.filename)
+        if item.filename == 'maindoc.xml':
+            data = data.replace(b'0000_00', name.encode())
+        # mimetype은 무압축 첫 항목이어야 한다는 kra(ODF식) 관례 유지
+        ctype = zipfile.ZIP_STORED if item.filename == 'mimetype' else zipfile.ZIP_DEFLATED
+        dst.writestr(item, data, compress_type=ctype)
+EOF
 open -a krita "$out"
-echo "새 작업 파일: $out (2480x3508, 300dpi)"
+echo "새 작업 파일: $out (2480x3508, 300dpi, 그룹 $name)"

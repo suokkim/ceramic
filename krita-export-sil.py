@@ -8,7 +8,9 @@
 #   0809_18_sil  → png/0809_18_sil.png  (실루엣, 레이어만 따로 저장)
 #   0809_19 …    → 각각 반복
 #   번호 없는 최상위 레이어(배경 등)는 공용 — 모든 작품에 같이 깔린다.
-#   실루엣 레이어는 최상위든 그룹 안이든 어디 있어도 되고, 작품 내보낼 땐 자동으로 꺼진다.
+#   **그룹 안의 "sil" 레이어는 그룹 번호를 자동으로 따른다** — 그룹을 복제해 다음
+#   작품을 만들 때 그룹 이름만 바꾸면 된다(안쪽 sil은 이름 그대로).
+#   작품 내보낼 땐 모든 실루엣 레이어가 자동으로 꺼진다.
 #
 # [단일 모드] 번호 레이어가 하나도 없으면 — 문서 파일명이 곧 작품 번호.
 #   전체(sil 제외)   → png/<문서명>.png
@@ -67,6 +69,12 @@ else:
         top = doc.rootNode().childNodes()
         works = [n for n in top if NUM.match(n.name().strip())]
         sils = [n for n in _walk(doc.rootNode()) if _is_sil_name(n.name().strip())]
+        # 그룹 안의 sil은 그룹 번호와 짝: [(파일이름, 노드)]
+        inner_sils = []
+        for w in works:
+            for s in _walk(w):
+                if _is_sil_name(s.name().strip()):
+                    inner_sils.append((w.name().strip() + "_sil", s))
 
         doc.setBatchmode(True)  # 내보내기 대화상자 억제
         try:
@@ -90,13 +98,15 @@ else:
                         renew = os.path.exists(path)  # 이미 있던 번호 = 기존 작품 갱신
                         doc.exportImage(path, InfoObject())
                         msg.append(u"작품 → " + name + ".png" + (u" (갱신)" if renew else u" (신규)"))
-                    for s in sils:
-                        sname = s.name().strip()
+                    # 그룹 안 sil은 그룹 번호로, 최상위 번호_sil은 제 이름으로
+                    inner_nodes = [s for _, s in inner_sils]
+                    exports = inner_sils + [
+                        (s.name().strip(), s) for s in sils
+                        if s.name().strip() != "sil" and not any(s is n for n in inner_nodes)
+                    ]
+                    for sname, s in exports:
                         if not _has_paint(s):
                             continue  # 빈 실루엣(템플릿 기본)은 조용히 무시
-                        if sname == "sil":
-                            msg.append(u'("sil" 레이어는 다작품 모드에선 무시 — 번호_sil로 이름 지을 것)')
-                            continue
                         _save_layer(doc, s, os.path.join(png_dir, sname + ".png"))
                         msg.append(u"실루엣 → " + sname + ".png")
                 else:

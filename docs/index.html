@@ -251,19 +251,25 @@ function slideTo(dir) {
 
 // 그리드는 names 순서 그대로 그린다. 확대 보기도 같은 names를 보므로 화면 순서와
 // 스와이프 순서가 절대 어긋나지 않는다 — 섞을 때 DOM만 뒤집으면 여기가 깨진다.
-// 폰인지는 로드 시점에 한 번만 본다 — 기본 뷰를 정하는 기준과 같은 값을 써야
-// "폰 = 모아보기 = 정사각 썸네일"이 어긋나지 않는다.
-const isPhone = matchMedia('(max-width: 600px)').matches;
-
 // 대문은 절대 원본을 받지 않는다. 원본은 뷰어에서 열 때만 — 개수가 늘어도 첫 로딩이
 // 무거워지지 않는 유일한 지점이다. 썸네일은 두 종류:
-//   sq/ 240x240  폰 모아보기 전용. 칸이 113px(레티나 226px)이라 이걸로 충분하다.
-//   th/ 424x600  그 외 전부. 데스크톱 모아보기는 칸이 365px까지 커져서 240px면 흐리고,
-//                큰 보기는 세로 비율이 필요해 정사각을 못 쓴다.
+//   sq/ 240x240  모아보기용 정사각 크롭
+//   th/ 424x600  큰 보기용. 세로 비율이 필요해 정사각을 못 쓴다.
 // images.json은 작품 이름(NN.png?v=…)을 들고 있으므로 확장자만 바꾼다 — ?v= 캐시
 // 무효화가 그대로 붙어서, 그림을 고치면 썸네일 캐시도 같이 갱신된다.
+const SQ_PX = 240;   // sq 변형의 한 변
+
+// 어느 쪽을 받을지는 폰/데스크톱이 아니라 **지금 칸이 실제로 몇 픽셀인지**로 정한다.
+// 기기로 나누면 데스크톱 10열(칸 108px = 레티나 216px)처럼 작은 경우를 놓쳐
+// 424px짜리를 헛되이 받는다. 그리드 폭은 재서 얻는다 — CSS의 max-width·padding을
+// JS에 복제하면 한쪽만 고쳤을 때 조용히 어긋난다. gap(2px)만 여기 적혀 있다.
+function cellPx() {
+  const w = document.getElementById('grid').getBoundingClientRect().width;
+  return cols > 0 ? (w - 2 * (cols - 1)) / cols : w;
+}
+const useSq = () => isCompact() && cellPx() * (devicePixelRatio || 1) <= SQ_PX;
 const thumbSrc = name =>
-  (isPhone && isCompact() ? 'images/sq/' : 'images/th/') + name.replace('.png', '.jpg');
+  (useSq() ? 'images/sq/' : 'images/th/') + name.replace('.png', '.jpg');
 
 function renderGrid() {
   const grid = document.getElementById('grid');
@@ -407,7 +413,7 @@ document.getElementById('logoBtn').onclick = () => {
 // 모아보기 토글 (아이콘 전환은 CSS가 aria-pressed를 보고 처리).
 // 상태는 열 수 하나로 표현한다: 0 = 큰 보기, 3~6 = 모아보기 열 수.
 // 누를 때마다 0 → 3 → 4 → 5 → 6 → 0 으로 한 바퀴 돈다.
-const MIN_COLS = 3, MAX_COLS = 6;
+const MIN_COLS = 3, MAX_COLS = 10;
 const gridEl = document.getElementById('grid');
 const toggleBtn = document.getElementById('gridToggle');
 let cols = 0;
@@ -432,13 +438,15 @@ setCols(matchMedia('(max-width: 600px)').matches ? MIN_COLS : 0);
 
 toggleBtn.onclick = () => {
   buzz();
-  const from = cols;
+  const from = cols, wasSq = useSq();
   setCols(from === 0 ? MIN_COLS : from === MAX_COLS ? 0 : from + 1);
   // 모아보기로 처음 들어갈 때만 섞고, 나올 때는 최신순 복귀 — 둘 다 순서가 바뀌니
   // 다시 그린다. 열 수만 바꾸는 중간 단계는 CSS 변수만 건드리므로 렌더가 필요 없고,
   // 순서를 유지해야 같은 배치를 밀도만 바꿔 비교할 수 있다.
   if (from === 0) { shuffleNames(); renderGrid(); }
   else if (cols === 0) { names = original.slice(); renderGrid(); }
+  // 밀도만 바뀌었어도 칸이 작아지며 sq/th 경계를 넘었으면 다시 그려 변형을 바꾼다
+  else if (useSq() !== wasSq) renderGrid();
 };
 // label은 button과 달리 키보드 활성화가 없으니 직접 붙인다
 document.getElementById('gridToggle').onkeydown = e => {

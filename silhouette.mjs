@@ -25,9 +25,9 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 
-// --manual: 손으로 그린 실루엣 레이어(png/MMDD_NN_sil.png)를 그대로 벡터화한다.
-// 자동 모드의 휴리스틱(클로징·오프닝·웅덩이·그림자)은 전부 생략 — 그린 대로 믿는다.
-// 어두운 칠 = 오브제, 안 칠한 곳(투명 포함) = 배경. 구멍도 그린 대로 뚫린다.
+// --manual: 손으로 그린 실루엣 레이어(png/MMDD_NN_sil.png)는 **변환하지 않는다** —
+// 붓 질감·톤까지 그린 그대로 쓴다. 흰 종이에 얹혀 600px로 줄인 JPEG를 SVG로 감싸
+// 출력만 같은 규격(si/NN.svg)으로 맞춘다. 벡터화·휴리스틱 전부 없음.
 const args = process.argv.slice(2);
 const manual = args[0] === '--manual';
 const [inPng, outSvg] = manual ? args.slice(1) : args;
@@ -35,6 +35,22 @@ if (!inPng || !outSvg) { console.error('usage: node silhouette.mjs [--manual] in
 
 const tmp = mkdtempSync(join(tmpdir(), 'sil-'));
 try {
+  if (manual) {
+    // 그린 그대로: 줄이기 + 투명→흰 종이(JPEG 변환이 겸함)만 하고 SVG로 감싼다
+    const jpg = join(tmp, 'sil.jpg');
+    execFileSync('sips', ['-Z', '600', '-s', 'format', 'jpeg', '-s', 'formatOptions', '82',
+      inPng, '--out', jpg], { stdio: 'ignore' });
+    const info = execFileSync('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', jpg]).toString();
+    const mw = +info.match(/pixelWidth: (\d+)/)[1];
+    const mh = +info.match(/pixelHeight: (\d+)/)[1];
+    const b64 = readFileSync(jpg).toString('base64');
+    mkdirSync(dirname(outSvg), { recursive: true });
+    writeFileSync(outSvg,
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mw} ${mh}">` +
+      `<image width="${mw}" height="${mh}" href="data:image/jpeg;base64,${b64}"/></svg>\n`);
+    rmSync(tmp, { recursive: true, force: true });
+    process.exit(0);
+  }
   const bmpIn = join(tmp, 'in.bmp');
   execFileSync('sips', ['-s', 'format', 'bmp', inPng, '--out', bmpIn], { stdio: 'ignore' });
   const buf = readFileSync(bmpIn);
@@ -121,10 +137,6 @@ try {
   for (let p = 0; p < N; p++) if (lum[p] <= SIL_CUT || blur[p] <= SIL_CUT - 10) dark[p] = 1;
 
   const bg = new Uint8Array(N);
-  if (manual) {
-    // 수제: 칠한 곳이 곧 오브제. flood fill 불필요 — 안 칠한 안쪽은 구멍(의도)이다.
-    for (let p = 0; p < N; p++) bg[p] = dark[p] ? 0 : 1;
-  } else {
   // --- 2. 클로징 + flood fill ---
   const barrier = dark.slice();
   dilate(barrier, R);
@@ -146,7 +158,6 @@ try {
   floodBorder(real, p => core[p]);
   dilate(real, E, p => bg[p]);
   bg.set(real);
-  }
 
   // --- 4. 잔점 제거 ---
   const compScan = (isMember, onComp) => {
@@ -169,7 +180,6 @@ try {
     if (comp.length < N / 2000) for (const p of comp) bg[p] = 1;
   });
 
-  if (!manual) {
   // --- 5. 웅덩이 메꾸기 (방향 비트 + 둘레 접촉비 + 슬릿 모양 예외) ---
   const dirs = new Uint8Array(N);   // 비트: 1 왼쪽에 오브제, 2 오른쪽, 4 위, 8 아래
   for (let y = 0; y < h; y++) {
@@ -242,7 +252,6 @@ try {
     });
     if (!removed) break;
   }
-  }   // if (!manual) 끝 — 수제는 그린 대로 믿는다
 
   // --- 벡터화: 마스크 경계를 폴리곤으로 추출 → RDP 단순화 → SVG ---
   // 픽셀 경계선(오브제/배경 사이 단위 변)을 "오브제가 진행 방향 오른쪽" 규칙으로

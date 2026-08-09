@@ -74,7 +74,7 @@ NODE=$(command -v node || echo /opt/homebrew/bin/node)
 mkdir -p docs/images/si
 for w in docs/images/*.png; do
   n=$(basename "$w" .png)
-  si="docs/images/si/$n.jpg"
+  si="docs/images/si/$n.svg"
   if [ ! -f "$si" ] || [ "$w" -nt "$si" ]; then
     "$NODE" silhouette.mjs "$w" "$si" || echo "실루엣 실패: $n"
   fi
@@ -85,7 +85,7 @@ for w in docs/images/*.png; do
   b=$(basename "$w")
   grep -q "^$b " docs/.imghash ||
     rm -f "$w" "docs/images/th/${b%.png}.jpg" "docs/images/sq/${b%.png}.jpg" \
-          "docs/images/si/${b%.png}.jpg"
+          "docs/images/si/${b%.png}.svg"
 done
 # 옛 PNG 썸네일 잔여물 정리 (JPEG 전환 전에 만들어진 것)
 rm -f docs/images/th/*.png

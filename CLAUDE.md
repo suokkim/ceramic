@@ -12,7 +12,7 @@
 - 웹용은 **긴 변 1600px**, 원본이 바뀐 것만 다시 생성.
 - 썸네일만 **JPEG**(용량). 작품 파일은 PNG 그대로.
   `docs/images/th/NN.jpg`(600px, 기본) + `docs/images/sq/NN.jpg`(240px 정사각, 폰 모아보기용)
-  + `docs/images/si/NN.jpg`(600px 실루엣 2톤, 모아보기 겹층 — `silhouette.mjs`가 생성).
+  + `docs/images/si/NN.svg`(벡터 실루엣, 모아보기 겹층 — `silhouette.mjs`가 생성).
 
 ## 오늘 작업 시작
 ```

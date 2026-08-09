@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// 실루엣 생성: docs/images/NN.png(웹용 원본) → docs/images/si/NN.jpg (2톤: 배경 255 / 오브제 102)
+// 실루엣 생성: docs/images/NN.png(웹용 원본) → docs/images/si/NN.svg
+// (흰 배경 rect + 회색 #666 오브제 패스 — 벡터라 어떤 크기로 줄여도 매끈하다)
 //
-// 사용: node silhouette.mjs <입력.png> <출력.jpg>
+// 사용: node silhouette.mjs <입력.png> <출력.svg>
 //
 // 왜 오프라인인가: 처음엔 브라우저가 240px JPEG 썸네일에서 매번 계산했는데, JPEG
 // 노이즈와 저해상도 때문에 의도된 슬릿(5px)과 질감 균열(5px)이 같은 크기로 보여
@@ -24,8 +25,8 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 
-const [inPng, outJpg] = process.argv.slice(2);
-if (!inPng || !outJpg) { console.error('usage: node silhouette.mjs in.png out.jpg'); process.exit(1); }
+const [inPng, outSvg] = process.argv.slice(2);
+if (!inPng || !outSvg) { console.error('usage: node silhouette.mjs in.png out.svg'); process.exit(1); }
 
 const tmp = mkdtempSync(join(tmpdir(), 'sil-'));
 try {
@@ -228,25 +229,76 @@ try {
     if (!removed) break;
   }
 
-  // --- BMP 쓰기 (24bpp bottom-up) → sips로 축소·JPEG 변환 ---
-  const outStride = (w * 3 + 3) & ~3;
-  const out = Buffer.alloc(54 + outStride * h);
-  out.write('BM'); out.writeUInt32LE(out.length, 2); out.writeUInt32LE(54, 10);
-  out.writeUInt32LE(40, 14); out.writeInt32LE(w, 18); out.writeInt32LE(h, 22);
-  out.writeUInt16LE(1, 26); out.writeUInt16LE(24, 28);
-  for (let y = 0; y < h; y++) {
-    const row = 54 + (h - 1 - y) * outStride;
-    for (let x = 0; x < w; x++) {
-      const v = bg[y * w + x] ? 255 : 102;
-      const o = row + x * 3;
-      out[o] = out[o + 1] = out[o + 2] = v;
+  // --- 벡터화: 마스크 경계를 폴리곤으로 추출 → RDP 단순화 → SVG ---
+  // 픽셀 경계선(오브제/배경 사이 단위 변)을 "오브제가 진행 방향 오른쪽" 규칙으로
+  // 모아 고리로 잇는다. fill-rule=evenodd라 감김 방향은 상관없고, 구멍·슬릿도
+  // 자동으로 뚫린다. RDP(ε=w/200)가 픽셀 계단을 지우고 곧은 변만 남긴다 —
+  // 둥근 배는 0.5% 오차의 다각형(눈에 안 보임), 사각·삼각의 각은 그대로 산다.
+  const W1 = w + 1;
+  const nextOf = new Map();   // 시작 꼭짓점 → [끝 꼭짓점, ...]
+  const addEdge = (a, b) => {
+    const arr = nextOf.get(a);
+    if (arr) arr.push(b); else nextOf.set(a, [b]);
+  };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (bg[y * w + x]) continue;
+    const p = y * w + x;
+    if (y === 0 || bg[p - w]) addEdge(y * W1 + x, y * W1 + x + 1);             // 윗변 →
+    if (y === h - 1 || bg[p + w]) addEdge((y + 1) * W1 + x + 1, (y + 1) * W1 + x); // 아랫변 ←
+    if (x === 0 || bg[p - 1]) addEdge((y + 1) * W1 + x, y * W1 + x);           // 왼변 ↑
+    if (x === w - 1 || bg[p + 1]) addEdge(y * W1 + x + 1, (y + 1) * W1 + x + 1); // 오른변 ↓
+  }
+  const loops = [];
+  for (const [start] of nextOf) {
+    while (nextOf.get(start)?.length) {
+      const pts = [start];
+      let cur = start;
+      do {
+        const outs = nextOf.get(cur);
+        const nxt = outs.pop();
+        if (!outs.length) nextOf.delete(cur);
+        pts.push(nxt); cur = nxt;
+      } while (cur !== start && nextOf.has(cur));
+      if (cur === start) { pts.pop(); loops.push(pts); }
     }
   }
-  const bmpOut = join(tmp, 'out.bmp');
-  writeFileSync(bmpOut, out);
-  mkdirSync(dirname(outJpg), { recursive: true });
-  execFileSync('sips', ['-Z', '600', '-s', 'format', 'jpeg', '-s', 'formatOptions', '82',
-    bmpOut, '--out', outJpg], { stdio: 'ignore' });
+  // RDP — 닫힌 고리는 시작점에서 가장 먼 점으로 둘로 갈라 각각 단순화
+  const px_ = p => p % W1, py_ = p => (p / W1) | 0;
+  const rdp = pts => {
+    const EPS = Math.max(2, w / 200);
+    const keep = new Uint8Array(pts.length);
+    keep[0] = keep[pts.length - 1] = 1;
+    const st = [[0, pts.length - 1]];
+    while (st.length) {
+      const [i, j] = st.pop();
+      const ax = px_(pts[i]), ay = py_(pts[i]), bx = px_(pts[j]), by = py_(pts[j]);
+      const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1;
+      let far = -1, fd = EPS;
+      for (let k = i + 1; k < j; k++) {
+        const d = Math.abs(dx * (py_(pts[k]) - ay) - dy * (px_(pts[k]) - ax)) / len;
+        if (d > fd) { fd = d; far = k; }
+      }
+      if (far >= 0) { keep[far] = 1; st.push([i, far], [far, j]); }
+    }
+    return pts.filter((_, k) => keep[k]);
+  };
+  const paths = loops.map(pts => {
+    let far = 0, fd = -1;
+    const ax = px_(pts[0]), ay = py_(pts[0]);
+    for (let k = 1; k < pts.length; k++) {
+      const d = (px_(pts[k]) - ax) ** 2 + (py_(pts[k]) - ay) ** 2;
+      if (d > fd) { fd = d; far = k; }
+    }
+    const a = rdp(pts.slice(0, far + 1));
+    const b = rdp(pts.slice(far).concat(pts[0]));
+    const ring = a.concat(b.slice(1, -1));
+    return 'M' + ring.map(p => px_(p) + ' ' + py_(p)).join('L') + 'Z';
+  });
+  mkdirSync(dirname(outSvg), { recursive: true });
+  writeFileSync(outSvg,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">` +
+    `<rect width="100%" height="100%" fill="#fff"/>` +
+    `<path d="${paths.join('')}" fill="#666" fill-rule="evenodd"/></svg>\n`);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }

@@ -86,14 +86,16 @@ else:
                         # refreshProjection만으론 부족하고 반드시 waitForDone까지.
                         doc.refreshProjection()
                         doc.waitForDone()
-                        doc.exportImage(os.path.join(png_dir, name + ".png"), InfoObject())
-                        msg.append(u"작품 → " + name + ".png")
+                        path = os.path.join(png_dir, name + ".png")
+                        renew = os.path.exists(path)  # 이미 있던 번호 = 기존 작품 갱신
+                        doc.exportImage(path, InfoObject())
+                        msg.append(u"작품 → " + name + ".png" + (u" (갱신)" if renew else u" (신규)"))
                     for s in sils:
                         sname = s.name().strip()
+                        if not _has_paint(s):
+                            continue  # 빈 실루엣(템플릿 기본)은 조용히 무시
                         if sname == "sil":
                             msg.append(u'("sil" 레이어는 다작품 모드에선 무시 — 번호_sil로 이름 지을 것)')
-                            continue
-                        if not _has_paint(s):
                             continue
                         _save_layer(doc, s, os.path.join(png_dir, sname + ".png"))
                         msg.append(u"실루엣 → " + sname + ".png")

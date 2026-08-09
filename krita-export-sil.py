@@ -43,6 +43,10 @@ else:
         doc.setBatchmode(True)  # 내보내기 대화상자 억제
         try:
             sil = _find_sil(doc.rootNode())
+            # 빈 sil 레이어(템플릿 기본 상태)는 없는 것으로 친다 — 안 그러면 빈
+            # 실루엣이 저장돼 자동 계산 실루엣을 덮어버린다. bounds = 칠한 영역.
+            if sil is not None and sil.bounds().isEmpty():
+                sil = None
             msg = []
             if sil is not None:
                 sil_path = os.path.join(png_dir, name + "_sil.png")

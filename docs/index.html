@@ -422,6 +422,7 @@ document.getElementById('logoBtn').onclick = () => {
 // 모아보기 토글. 상태는 열 수 하나로 표현한다: 0 = 큰 보기, 3~10 = 모아보기 열 수.
 // 누를 때마다 0 → 3 → 4 → … → 10 → 0 으로 한 바퀴 돈다.
 const MIN_COLS = 3, MAX_COLS = 10;
+const SIL_FULL = 6;   // 이 열 수부터 실루엣 100% (3열 0% → 4·5열 점진 → 6열부터 완전)
 const STEPS = MAX_COLS - MIN_COLS + 1;   // 3열부터 큰 보기까지 순환 단계 수
 const gridEl = document.getElementById('grid');
 const toggleBtn = document.getElementById('gridToggle');
@@ -460,8 +461,11 @@ function setCols(c) {
   if (on) gridEl.style.setProperty('--cols', c);
   const next = nextOf(c);
   drawToggleIcon(next);
-  // 칸이 작아질수록(=열이 늘수록) 실루엣 겹층이 진해진다 — CSS opacity 하나로
-  gridEl.style.setProperty('--sil', on ? (c - MIN_COLS) / (MAX_COLS - MIN_COLS) : 0);
+  // 칸이 작아질수록(=열이 늘수록) 실루엣 겹층이 진해진다 — CSS opacity 하나로.
+  // 3열은 원본 그대로, 4열부터 실루엣이 섞이기 시작해 SIL_FULL(6열)에서 100%,
+  // 그 위(7~10열)는 완전 실루엣 유지.
+  gridEl.style.setProperty('--sil',
+    on ? Math.min(1, (c - MIN_COLS) / (SIL_FULL - MIN_COLS)) : 0);
   // 열 수는 화면에 표시하지 않는다 — 그리드 자체로 보이므로. 라벨에만 남긴다
   toggleBtn.setAttribute('aria-pressed', on);
   toggleBtn.setAttribute('aria-label',

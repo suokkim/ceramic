@@ -631,7 +631,7 @@ const silhouetteOf = src => {
           if (x > 0) look(p - 1);
           if (x < w - 1) look(p + 1);
         }
-        if (touchObj >= 3 * touchOpen) for (const p of comp) bg[p] = 0;
+        if (touchObj >= 2 * touchOpen) for (const p of comp) bg[p] = 0;
       }
       // 그림자 제거: 오브제 높이 하단 22%에서 세로로 얇은(< h/24) 가로 구조를 지운다 —
       // 바닥에서 삐져나온 그림자 선·지면 붓선. 몸통과 이어진 기둥은 세로 런이 길어서

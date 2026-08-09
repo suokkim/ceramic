@@ -308,9 +308,6 @@ const isCompact = () => document.getElementById('grid').classList.contains('comp
 
 fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
   original = list; names = list.slice(); n = list.length;
-  // 모아보기로 시작하면 순서도 무작위 — 들어오거나 새로고침할 때마다 새 조합이 된다.
-  // 큰 보기는 최신순을 지킨다. (렌더는 한 번만 — 섞고 나서 그린다)
-  if (isCompact()) shuffleNames();
   renderGrid();
 });
 
@@ -469,11 +466,8 @@ function setCols(c) {
     (next === 0 ? ', 누르면 큰 보기' : `, 누르면 ${next}열`));
 }
 
-// 기본 뷰는 화면 폭으로만 정한다: 폰은 모아보기 3열, 그 위는 큰 보기.
-// 600px 아래면 큰 보기가 1열이라 스크롤만 길어지고 전체 톤이 안 보인다.
-// 최초 1회만 — matchMedia를 구독하면 사용자가 직접 고른 뷰를 창 크기 조절이
-// 덮어써 버린다. 한 번 누른 선택은 끝까지 존중.
-setCols(matchMedia('(max-width: 600px)').matches ? MIN_COLS : 0);
+// 기본 뷰는 화면 폭과 무관하게 큰 보기 — 최신작을 먼저 보여준다.
+setCols(0);
 
 toggleBtn.onclick = () => {
   buzz();

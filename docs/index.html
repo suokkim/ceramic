@@ -55,9 +55,6 @@
   /* :hover 상태색은 두지 않는다 — 터치 기기는 탭하면 hover가 걸린 채로 남아서
      다른 곳을 누를 때까지 색이 달라 보인다(아이콘이 두 가지 색으로 보이던 원인).
      되살릴 거면 반드시 @media (hover: hover)로 감쌀 것. */
-  /* 아이콘 두 개를 넣어두고 상태(aria-pressed)에 따라 하나만 보여준다 */
-  #gridToggle[aria-pressed="false"] .ico-big,
-  #gridToggle[aria-pressed="true"] .ico-grid { display: none; }
   .grid {
     width: 100%; max-width: 1100px; margin: 0 auto;
     display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -147,19 +144,11 @@
       <circle cx="24" cy="30" r="16" fill="#b5b5b5"/>
     </svg>
   </label>
+  <!-- 아이콘은 setCols()가 그린다. 2단계 토글일 땐 아이콘 두 개를 CSS로 갈아끼웠지만,
+       열이 3~10으로 순환하게 되면서 그 방식이 거짓말을 하게 됐다(3열인데 "큰 보기"
+       사각형이 떠 있고 실제로 누르면 4열). 지금은 **다음에 누르면 갈 곳**을 그린다. -->
   <label for="hap" id="gridToggle" role="button" tabindex="0" aria-pressed="false" aria-label="모아보기">
-    <!-- 모아보기: 3×3 사각 점 -->
-    <svg class="ico-grid" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-      <rect x="0" y="0" width="5" height="5"/><rect x="6.5" y="0" width="5" height="5"/><rect x="13" y="0" width="5" height="5"/>
-      <rect x="0" y="6.5" width="5" height="5"/><rect x="6.5" y="6.5" width="5" height="5"/><rect x="13" y="6.5" width="5" height="5"/>
-      <rect x="0" y="13" width="5" height="5"/><rect x="6.5" y="13" width="5" height="5"/><rect x="13" y="13" width="5" height="5"/>
-    </svg>
-    <!-- 크게 보기: 사각형 하나. 이미지와 같은 규칙 — 2시(오른쪽 위)만 90도로 각지고
-         나머지 세 모서리는 라운드. 시작점이 그 각진 모서리(18,0)이고 거기서
-         시계 방향으로 돌며 4시·8시·10시에 반지름 4 arc를 넣는다 -->
-    <svg class="ico-big" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-      <path d="M18 0 v14 a4 4 0 0 1 -4 4 h-10 a4 4 0 0 1 -4 -4 v-10 a4 4 0 0 1 4 -4 z"/>
-    </svg>
+    <svg id="toggleIcon" width="18" height="18" viewBox="0 0 18 18" fill="currentColor"></svg>
   </label>
 </header>
 <div class="grid" id="grid"></div>
@@ -410,24 +399,49 @@ document.getElementById('logoBtn').onclick = () => {
   if (isCompact()) shuffleGrid();
 };
 
-// 모아보기 토글 (아이콘 전환은 CSS가 aria-pressed를 보고 처리).
-// 상태는 열 수 하나로 표현한다: 0 = 큰 보기, 3~6 = 모아보기 열 수.
-// 누를 때마다 0 → 3 → 4 → 5 → 6 → 0 으로 한 바퀴 돈다.
+// 모아보기 토글. 상태는 열 수 하나로 표현한다: 0 = 큰 보기, 3~10 = 모아보기 열 수.
+// 누를 때마다 0 → 3 → 4 → … → 10 → 0 으로 한 바퀴 돈다.
 const MIN_COLS = 3, MAX_COLS = 10;
 const gridEl = document.getElementById('grid');
 const toggleBtn = document.getElementById('gridToggle');
+const toggleIcon = document.getElementById('toggleIcon');
 let cols = 0;
+
+// 다음에 누르면 갈 상태
+const nextOf = c => c === 0 ? MIN_COLS : c === MAX_COLS ? 0 : c + 1;
+
+// 큰 보기 아이콘: 이미지와 같은 실루엣 — 2시(오른쪽 위)만 90도로 각지고 나머지 세
+// 모서리는 라운드. 각진 모서리(18,0)에서 시계 방향으로 돌며 4·8·10시에 반지름 4 arc.
+const BIG_PATH = 'M18 0 v14 a4 4 0 0 1 -4 4 h-10 a4 4 0 0 1 -4 -4 v-10 a4 4 0 0 1 4 -4 z';
+
+// **아이콘은 지금 상태가 아니라 다음에 갈 곳을 그린다.** 순환이 여러 단계라 상태를
+// 그리면 3열에서 "큰 보기" 사각형이 떠 다음 탭이 4열인 걸 속이게 된다.
+function drawToggleIcon(next) {
+  if (next === 0) { toggleIcon.innerHTML = `<path d="${BIG_PATH}"/>`; return; }
+  // n×n 점 격자. 점:간격을 10:3으로 잡으면 n=3일 때 예전 아이콘(5px 점, 1.5px 간격)과
+  // 정확히 같아진다. 5를 넘으면 점이 뭉개져 큰 보기 사각형과 구분이 안 되므로 거기서 멈춘다
+  const k = Math.min(next, 5);
+  const d = 18 / (1.3 * k - 0.3), step = d * 1.3;
+  let s = '';
+  for (let y = 0; y < k; y++)
+    for (let x = 0; x < k; x++)
+      s += `<rect x="${(x * step).toFixed(2)}" y="${(y * step).toFixed(2)}"`
+         + ` width="${d.toFixed(2)}" height="${d.toFixed(2)}"/>`;
+  toggleIcon.innerHTML = s;
+}
 
 function setCols(c) {
   cols = c;
   const on = c > 0;
   gridEl.classList.toggle('compact', on);
   if (on) gridEl.style.setProperty('--cols', c);
-  // 열 수는 화면에 표시하지 않는다 — 그리드 자체로 보이므로. 스크린리더용 라벨에만 남긴다
+  const next = nextOf(c);
+  drawToggleIcon(next);
+  // 열 수는 화면에 표시하지 않는다 — 그리드 자체로 보이므로. 라벨에만 남긴다
   toggleBtn.setAttribute('aria-pressed', on);
   toggleBtn.setAttribute('aria-label',
-    on ? `모아보기 ${c}열` + (c < MAX_COLS ? `, 누르면 ${c + 1}열` : ', 누르면 크게 보기')
-       : '모아보기');
+    (on ? `모아보기 ${c}열` : '큰 보기') +
+    (next === 0 ? ', 누르면 큰 보기' : `, 누르면 ${next}열`));
 }
 
 // 기본 뷰는 화면 폭으로만 정한다: 폰은 모아보기 3열, 그 위는 큰 보기.

@@ -13,6 +13,8 @@
 - 썸네일만 **JPEG**(용량). 작품 파일은 PNG 그대로.
   `docs/images/th/NN.jpg`(600px, 기본) + `docs/images/sq/NN.jpg`(240px 정사각, 폰 모아보기용)
   + `docs/images/si/NN.svg`(벡터 실루엣, 모아보기 겹층 — `silhouette.mjs`가 생성).
+- 실루엣을 손으로 그리려면 Krita에서 실루엣 레이어를 `png/MMDD_NN_sil.png`로 저장
+  (레이어 > 가져오기/내보내기 > 레이어 저장). 있으면 자동 계산 대신 그대로 벡터화된다.
 
 ## 오늘 작업 시작
 ```

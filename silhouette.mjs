@@ -25,8 +25,13 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 
-const [inPng, outSvg] = process.argv.slice(2);
-if (!inPng || !outSvg) { console.error('usage: node silhouette.mjs in.png out.svg'); process.exit(1); }
+// --manual: 손으로 그린 실루엣 레이어(png/MMDD_NN_sil.png)를 그대로 벡터화한다.
+// 자동 모드의 휴리스틱(클로징·오프닝·웅덩이·그림자)은 전부 생략 — 그린 대로 믿는다.
+// 어두운 칠 = 오브제, 안 칠한 곳(투명 포함) = 배경. 구멍도 그린 대로 뚫린다.
+const args = process.argv.slice(2);
+const manual = args[0] === '--manual';
+const [inPng, outSvg] = manual ? args.slice(1) : args;
+if (!inPng || !outSvg) { console.error('usage: node silhouette.mjs [--manual] in.png out.svg'); process.exit(1); }
 
 const tmp = mkdtempSync(join(tmpdir(), 'sil-'));
 try {
@@ -47,7 +52,10 @@ try {
     const row = dataOff + (bottomUp ? h - 1 - y : y) * stride;
     for (let x = 0; x < w; x++) {
       const o = row + x * bpp;
-      lum[y * w + x] = (buf[o] + buf[o + 1] + buf[o + 2]) / 3; // BGR 평균
+      let v = (buf[o] + buf[o + 1] + buf[o + 2]) / 3; // BGR 평균
+      // 투명 배경(레이어 내보내기)은 흰 종이 위에 얹은 것으로 취급
+      if (bpp === 4) { const a = buf[o + 3] / 255; v = v * a + 255 * (1 - a); }
+      lum[y * w + x] = v;
     }
   }
 
@@ -112,10 +120,14 @@ try {
   const dark = new Uint8Array(N);
   for (let p = 0; p < N; p++) if (lum[p] <= SIL_CUT || blur[p] <= SIL_CUT - 10) dark[p] = 1;
 
+  const bg = new Uint8Array(N);
+  if (manual) {
+    // 수제: 칠한 곳이 곧 오브제. flood fill 불필요 — 안 칠한 안쪽은 구멍(의도)이다.
+    for (let p = 0; p < N; p++) bg[p] = dark[p] ? 0 : 1;
+  } else {
   // --- 2. 클로징 + flood fill ---
   const barrier = dark.slice();
   dilate(barrier, R);
-  const bg = new Uint8Array(N);
   floodBorder(bg, p => !barrier[p]);
   dilate(bg, R, p => !dark[p]);   // 경계 복원 — 닫힌 틈은 R보다 길어 다시 안 뚫린다
 
@@ -134,6 +146,7 @@ try {
   floodBorder(real, p => core[p]);
   dilate(real, E, p => bg[p]);
   bg.set(real);
+  }
 
   // --- 4. 잔점 제거 ---
   const compScan = (isMember, onComp) => {
@@ -156,6 +169,7 @@ try {
     if (comp.length < N / 2000) for (const p of comp) bg[p] = 1;
   });
 
+  if (!manual) {
   // --- 5. 웅덩이 메꾸기 (방향 비트 + 둘레 접촉비 + 슬릿 모양 예외) ---
   const dirs = new Uint8Array(N);   // 비트: 1 왼쪽에 오브제, 2 오른쪽, 4 위, 8 아래
   for (let y = 0; y < h; y++) {
@@ -228,6 +242,7 @@ try {
     });
     if (!removed) break;
   }
+  }   // if (!manual) 끝 — 수제는 그린 대로 믿는다
 
   // --- 벡터화: 마스크 경계를 폴리곤으로 추출 → RDP 단순화 → SVG ---
   // 픽셀 경계선(오브제/배경 사이 단위 변)을 "오브제가 진행 방향 오른쪽" 규칙으로

@@ -14,10 +14,12 @@ mkdir -p docs/images/th docs/images/sq
 . ./numof.sh
 
 # 번호를 못 읽는 파일에만 오늘 날짜로 번호를 붙인다 (Krita 밖에서 넣은 파일용).
+# *_sil.png(수제 실루엣, 아래 참조)는 작품이 아니므로 건드리지 않는다.
 next=$(for f in png/*.png; do numof "$(basename "$f")"; done | sort -n | tail -1 | sed 's/^0//')
 next=$(( ${next:-0} + 1 ))
 for f in png/*.png; do
   base=$(basename "$f")
+  case "$base" in *_sil.png) continue;; esac
   [ -n "$(numof "$base")" ] && continue
   new="$(date +%m%d)_$(printf '%02d' "$next").png"
   mv -f "$f" "png/$new"
@@ -72,11 +74,25 @@ mv docs/.imghash.new docs/.imghash
 # node 경로: launchd(자동업로드 앱) 환경에는 /opt/homebrew/bin이 PATH에 없다.
 NODE=$(command -v node || echo /opt/homebrew/bin/node)
 mkdir -p docs/images/si
+
+# 수제 실루엣 오버라이드: Krita에서 실루엣을 별도 레이어에 그렸다면
+# 그 레이어를 png/MMDD_NN_sil.png 로 저장한다(레이어 > 가져오기/내보내기 > 레이어 저장).
+# 있으면 자동 계산 대신 그 그림을 그대로 벡터화(--manual: 휴리스틱 전부 생략).
+# 같은 번호가 둘이면 작품과 같은 규칙으로 최신 파일이 이긴다.
+# 수제를 그만두려면 _sil 파일과 si/NN.svg를 지우고 이 스크립트를 다시 돌리면 된다.
+silmap=$(for f in $(ls -tr png/*_sil.png 2>/dev/null); do
+           n=$(numof "$(basename "$f" | sed 's/_sil\.png$/.png/')")
+           [ -n "$n" ] && echo "$n $f"
+         done | awk '{m[$1]=$2} END {for (k in m) print k, m[k]}')
+
 for w in docs/images/*.png; do
   n=$(basename "$w" .png)
   si="docs/images/si/$n.svg"
-  if [ ! -f "$si" ] || [ "$w" -nt "$si" ]; then
-    "$NODE" silhouette.mjs "$w" "$si" || echo "실루엣 실패: $n"
+  src="$w"; mode=""
+  manual=$(echo "$silmap" | awk -v n="$n" '$1==n {print $2}')
+  if [ -n "$manual" ]; then src="$manual"; mode="--manual"; fi
+  if [ ! -f "$si" ] || [ "$src" -nt "$si" ]; then
+    "$NODE" silhouette.mjs $mode "$src" "$si" || echo "실루엣 실패: $n"
   fi
 done
 

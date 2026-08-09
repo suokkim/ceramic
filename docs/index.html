@@ -457,7 +457,9 @@ function drawToggleIcon(next) {
 // 배경은 255로 그린다 — 그리드의 dimWhite 필터가 원본 썸네일과 똑같이 눌러 주므로
 // 겹쳐도 배경 톤이 어긋나지 않는다. 결과는 썸네일 src별로 캐시.
 const SIL_FG = 102;    // 오브제 톤 0.4
-const SIL_CUT = 200;   // 이보다 밝고 테두리와 이어져 있으면 배경
+const SIL_CUT = 215;   // 이보다 밝고 테두리와 이어져 있으면 배경.
+                       // 200이면 흰색으로 칠한 장식의 얇은 외곽선(~205-215)이 뚫려 내부가 샌다.
+                       // 종이의 옅은 붓자국(217~)은 여전히 배경 쪽이라 외곽은 깨끗하다.
 const silCache = new Map();
 const silhouetteOf = src => {
   if (!silCache.has(src)) silCache.set(src, new Promise(res => {

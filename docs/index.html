@@ -433,11 +433,12 @@ function drawToggleIcon(next) {
 }
 
 // #dimWhite 톤 커브를 두 곡선 사이에서 섞는다. t=0은 큰 보기용 원본(흰 배경만 0.9로
-// 누름), t=1은 실루엣 — 입력 0~0.6을 전부 한 톤(0.4)으로 눌러 도자기 내부 명암이
-// 사라지고 윤곽만 남는다. 배경(1.0)은 어느 쪽이든 그대로라 실루엣이 또렷해진다.
+// 누름), t=1은 실루엣 — 배경 직전(0.9)까지 전부 한 톤(0.4)으로 눌러 도자기의 명암은
+// 물론 하이라이트까지 죽이고 윤곽만 남긴다. 배경(1.0)은 어느 쪽이든 0.9 그대로.
+// 무릎(0.9) 위치를 위해 표를 11칸으로 — 6칸이면 0.8부터 풀려 밝은 부분이 살아남는다.
 // CSS 변수로는 tableValues를 못 받아서 여기서 속성을 직접 갈아 끼운다.
-const TONE_BIG  = [0, .2, .4, .6, .8, .9];
-const TONE_FLAT = [.4, .4, .4, .4, .75, .9];
+const TONE_BIG  = [0, .1, .2, .3, .4, .5, .6, .7, .8, .85, .9];
+const TONE_FLAT = [.4, .4, .4, .4, .4, .4, .4, .4, .4, .4, .9];
 const toneFuncs = document.querySelectorAll('#dimWhite feFuncR, #dimWhite feFuncG, #dimWhite feFuncB');
 function setTone(t) {
   const v = TONE_BIG.map((b, i) => (b + (TONE_FLAT[i] - b) * t).toFixed(3)).join(' ');

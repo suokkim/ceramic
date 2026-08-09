@@ -3,7 +3,8 @@
 세라믹 도자기 컨셉 디자인 갤러리 (GitHub Pages, `docs/`가 사이트 루트).
 공개 주소: https://suokkim.github.io/ceramic/
 
-**세부 정책은 [POLICY.md](POLICY.md) 참조.** 이미지 규격·순서·디자인 컨셉을 바꾸면 POLICY.md도 함께 갱신할 것.
+**전체 작업 흐름은 [WORKFLOW.md](WORKFLOW.md), 세부 정책은 [POLICY.md](POLICY.md) 참조.**
+이미지 규격·순서·디자인 컨셉·프로세스를 바꾸면 두 문서도 함께 갱신할 것.
 
 ## 핵심 규칙
 - 작품은 **PNG**. 원본은 `png/`(로컬 전용, git에 안 올라감), 웹용만 `docs/images/`에 공개.

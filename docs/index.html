@@ -513,6 +513,45 @@ const silhouetteOf = src => {
       // 장벽 때문에 배경이 오브제 경계에서 R만큼 밀려나 있다 — 원래 밝은 픽셀 한정으로
       // R만큼 되불려 경계를 복원한다. 닫힌 틈은 R보다 길어서 다시 뚫리지 않는다.
       dilate(bg, R, p => !dark[p]);
+      // 가짜 배경 걸러내기(오프닝): 오브제 안쪽 얼룩이 실오라기 같은 통로로 배경과
+      // 이어지면 flood fill이 구멍을 낸다(달항아리 질감). 배경을 1px 침식해 통로를
+      // 끊고, 테두리에서 다시 채워 닿는 것만 진짜 배경 — 나머지는 오브제로 메꾼다.
+      // 슬릿·조형 사이 틈은 그보다 굵어서 살아남는다. 이미지 가장자리 줄은 침식 제외.
+      const core = new Uint8Array(N);
+      for (let p = 0; p < N; p++) if (bg[p]) {
+        const x = p % w;
+        core[p] = (p < w || p >= N - w || x === 0 || x === w - 1 ||
+                   (bg[p - w] && bg[p + w] && bg[p - 1] && bg[p + 1])) ? 1 : 0;
+      }
+      const real = new Uint8Array(N);
+      const push2 = p => { if (!real[p] && core[p]) { real[p] = 1; q.push(p); } };
+      for (let x = 0; x < w; x++) { push2(x); push2((h - 1) * w + x); }
+      for (let y = 1; y < h - 1; y++) { push2(y * w); push2(y * w + w - 1); }
+      while (q.length) {
+        const p = q.pop(), x = p % w;
+        if (p >= w) push2(p - w);
+        if (p < N - w) push2(p + w);
+        if (x > 0) push2(p - 1);
+        if (x < w - 1) push2(p + 1);
+      }
+      dilate(real, 1, p => bg[p]);
+      bg.set(real);
+      // 잔점 제거: 그림자 붓끝이 흩어진 자잘한 오브제 점(면적 < N/2000)만 배경으로.
+      // 바닥 선이나 그림자 덩어리는 이보다 커서 그대로 남는다.
+      const MIN_BLOB = N / 2000, seen = new Uint8Array(N);
+      for (let p0 = 0; p0 < N; p0++) {
+        if (bg[p0] || seen[p0]) continue;
+        const comp = [p0]; seen[p0] = 1;
+        for (let i = 0; i < comp.length; i++) {
+          const p = comp[i], x = p % w;
+          const step = q2 => { if (!bg[q2] && !seen[q2]) { seen[q2] = 1; comp.push(q2); } };
+          if (p >= w) step(p - w);
+          if (p < N - w) step(p + w);
+          if (x > 0) step(p - 1);
+          if (x < w - 1) step(p + 1);
+        }
+        if (comp.length < MIN_BLOB) for (const p of comp) bg[p] = 1;
+      }
       for (let p = 0; p < N; p++) {
         const v = bg[p] ? 255 : SIL_FG;
         d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = v; d[p * 4 + 3] = 255;

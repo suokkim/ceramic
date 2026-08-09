@@ -1,7 +1,9 @@
 #!/bin/sh
 # 오늘 작업할 빈 캔버스를 kra/에 만들고 Krita로 연다.
-# 규격: A4 300dpi, 2480x3508, RGB 8bit — Krita가 기본 제공하는 A4 템플릿을 복사한다.
-#       (흰 배경 레이어 + 빈 그림 레이어 2장 구성. 새 문서 대화상자를 거칠 필요가 없다)
+# 규격: A4 300dpi, 2480x3508, RGB 8bit — 저장소의 template.kra를 복사한다.
+#       구성: 흰 배경 + 빈 그림 레이어 + 숨긴 "sil" 레이어(수제 실루엣용, POLICY 4절).
+#       Krita 기본 A4 템플릿에 sil 레이어를 심은 것 — 원본은
+#       /Applications/krita.app/.../DesignpresentationA4portrait_2480x3508_300dpiRGB_8bit_.kra
 # 이름: MMDD_NN.kra — 앞은 만든 날짜, 뒤 NN은 **갤러리에서 받게 될 번호**.
 #       png/의 마지막 번호(와 아직 안 내보낸 kra의 번호) 다음 값을 미리 붙여둔다.
 #       그래서 0806_08.kra로 그린 그림은 내보내면 그대로 08.png가 된다.
@@ -11,7 +13,7 @@
 #         ./newdoc.sh -n   같은 날에도 캔버스를 하나 더 만든다
 cd "$(dirname "$0")"
 
-TPL="/Applications/krita.app/Contents/Resources/krita/templates/design/.source/DesignpresentationA4portrait_2480x3508_300dpiRGB_8bit_.kra"
+TPL="template.kra"
 [ -f "$TPL" ] || { echo "템플릿을 못 찾음: $TPL"; exit 1; }
 
 today=$(date +%m%d)

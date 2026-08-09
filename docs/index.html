@@ -304,9 +304,6 @@ function shuffleNames() {
     [names[i], names[j]] = [names[j], names[i]];
   }
 }
-// 다시 그려도 이미지는 브라우저 캐시에 있어 네트워크를 안 탄다.
-const shuffleGrid = () => { shuffleNames(); renderGrid(); };
-
 const isCompact = () => document.getElementById('grid').classList.contains('compact');
 
 fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
@@ -408,15 +405,14 @@ track.addEventListener('wheel', e => {
   slideTo(e.deltaX > 0 ? 1 : -1);
 }, {passive: false});
 
-// 로고 인터랙션: 누를 때마다 원↔사각형 앞뒤가 바뀐다.
+// 로고 인터랙션: 누를 때마다 원↔사각형 앞뒤가 바뀌고, 모아보기였다면 큰 보기로 돌아간다.
 // SVG는 문서 순서대로 그리므로, 맨 앞 요소를 맨 뒤로 옮기면 앞뒤가 뒤집힌다.
 document.getElementById('logoBtn').onclick = () => {
   buzz();
   const svg = document.getElementById('logo');
   svg.appendChild(svg.firstElementChild);
-  // 모아보기에서만 순서도 섞는다 — 전체 톤을 매번 새 조합으로 보는 용도.
-  // 큰 보기는 최신순(번호 역순)이 의미를 가지므로 건드리지 않는다.
-  if (isCompact()) shuffleGrid();
+  // 큰 보기는 최신순이 의미를 가지므로 순서 복귀 후 다시 그린다 (토글과 동일).
+  if (isCompact()) { setCols(0); names = original.slice(); renderGrid(); }
 };
 
 // 모아보기 토글. 상태는 열 수 하나로 표현한다: 0 = 큰 보기, 3~10 = 모아보기 열 수.

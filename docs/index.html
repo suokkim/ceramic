@@ -468,18 +468,50 @@ const silhouetteOf = src => {
       const cx = cv.getContext('2d', {willReadFrequently: true});
       cx.drawImage(im, 0, 0);
       const px = cx.getImageData(0, 0, w, h), d = px.data;
-      const bg = new Uint8Array(w * h), q = [];
-      const push = p => { if (!bg[p] && d[p * 4] > SIL_CUT) { bg[p] = 1; q.push(p); } };
+      const N = w * h;
+      // mask를 R단계 한 픽셀씩 불린다(allow가 있으면 그 픽셀로만)
+      const dilate = (mask, R, allow) => {
+        let front = [];
+        for (let p = 0; p < N; p++) if (mask[p]) front.push(p);
+        for (let s = 0; s < R; s++) {
+          const next = [];
+          for (const p of front) {
+            const x = p % w;
+            const grow = q => {
+              if (!mask[q] && (!allow || allow(q))) { mask[q] = 1; next.push(q); }
+            };
+            if (p >= w) grow(p - w);
+            if (p < N - w) grow(p + w);
+            if (x > 0) grow(p - 1);
+            if (x < w - 1) grow(p + 1);
+          }
+          front = next;
+        }
+      };
+      // 어두운 픽셀을 R만큼 불려 장벽으로 쓴다 — 내부의 밝은 웅덩이가 얇은 밝은 틈으로
+      // 테두리와 이어져 있어도(사각 장식 내부, 전 부분) 틈이 닫혀 flood fill이 못 샌다.
+      // R은 썸네일 폭에 비례: sq 240px → 2, th 424px → 4. 이보다 넓은 틈(의도된 슬릿)은 살아남는다.
+      const R = Math.max(2, Math.round(w / 120));
+      const dark = new Uint8Array(N);
+      for (let p = 0; p < N; p++) if (d[p * 4] <= SIL_CUT) dark[p] = 1;
+      const barrier = dark.slice();
+      dilate(barrier, R);
+      // 테두리에서 flood fill — 장벽 밖 픽셀만 배경
+      const bg = new Uint8Array(N), q = [];
+      const push = p => { if (!bg[p] && !barrier[p]) { bg[p] = 1; q.push(p); } };
       for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
       for (let y = 1; y < h - 1; y++) { push(y * w); push(y * w + w - 1); }
       while (q.length) {
         const p = q.pop(), x = p % w;
         if (p >= w) push(p - w);
-        if (p < w * (h - 1)) push(p + w);
+        if (p < N - w) push(p + w);
         if (x > 0) push(p - 1);
         if (x < w - 1) push(p + 1);
       }
-      for (let p = 0; p < w * h; p++) {
+      // 장벽 때문에 배경이 오브제 경계에서 R만큼 밀려나 있다 — 원래 밝은 픽셀 한정으로
+      // R만큼 되불려 경계를 복원한다. 닫힌 틈은 R보다 길어서 다시 뚫리지 않는다.
+      dilate(bg, R, p => !dark[p]);
+      for (let p = 0; p < N; p++) {
         const v = bg[p] ? 255 : SIL_FG;
         d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = v; d[p * 4 + 3] = 255;
       }

@@ -71,7 +71,8 @@ else:
         doc.setBatchmode(True)  # 내보내기 대화상자 억제
         try:
             msg = []
-            orig = {n: n.visible() for n in works + sils}
+            # Krita 노드 객체는 해시 불가 — dict 키로 못 쓰고 (node, visible) 쌍 목록으로
+            orig = [(n, n.visible()) for n in works + sils]
             try:
                 if works:
                     # --- 다작품 모드: 번호 레이어마다 한 장씩 ---
@@ -107,7 +108,7 @@ else:
                     if sil is None:
                         msg.append(u"(그린 실루엣 없음 — 자동 계산)")
             finally:
-                for n, v in orig.items():
+                for n, v in orig:
                     n.setVisible(v)
                 doc.refreshProjection()
             _say(u"\n".join(msg))

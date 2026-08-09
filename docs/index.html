@@ -552,6 +552,41 @@ const silhouetteOf = src => {
         }
         if (comp.length < MIN_BLOB) for (const p of comp) bg[p] = 1;
       }
+      // 갇힌 웅덩이 메꾸기: 질감의 흰 흠집이 넓은 통로로 밖과 이어지면 위 단계들을
+      // 다 통과한다(볏짚 항아리 어깨). 상하좌우 어느 방향으로도 오브제를 안 넘고는
+      // 이미지 밖으로 못 나가는 배경 픽셀 무리(면적 < N/100)만 오브제로 편입.
+      // 슬릿은 좌우가 뚫려 있고, 조형 사이 큰 틈은 면적이 커서 둘 다 그대로 남는다.
+      const dirs = new Uint8Array(N);   // 비트: 1 왼쪽에 오브제, 2 오른쪽, 4 위, 8 아래
+      for (let y = 0; y < h; y++) {
+        let a = 0, b = 0;
+        for (let x = 0; x < w; x++) {
+          const p = y * w + x, r = y * w + (w - 1 - x);
+          if (!bg[p]) a = 1; else dirs[p] |= a;
+          if (!bg[r]) b = 1; else dirs[r] |= b << 1;
+        }
+      }
+      for (let x = 0; x < w; x++) {
+        let a = 0, b = 0;
+        for (let y = 0; y < h; y++) {
+          const p = y * w + x, r = (h - 1 - y) * w + x;
+          if (!bg[p]) a = 1; else dirs[p] |= a << 2;
+          if (!bg[r]) b = 1; else dirs[r] |= b << 3;
+        }
+      }
+      const seen2 = new Uint8Array(N);
+      for (let p0 = 0; p0 < N; p0++) {
+        if (dirs[p0] !== 15 || seen2[p0]) continue;
+        const comp = [p0]; seen2[p0] = 1;
+        for (let i = 0; i < comp.length; i++) {
+          const p = comp[i], x = p % w;
+          const step = q2 => { if (dirs[q2] === 15 && !seen2[q2]) { seen2[q2] = 1; comp.push(q2); } };
+          if (p >= w) step(p - w);
+          if (p < N - w) step(p + w);
+          if (x > 0) step(p - 1);
+          if (x < w - 1) step(p + 1);
+        }
+        if (comp.length < N / 100) for (const p of comp) bg[p] = 0;
+      }
       for (let p = 0; p < N; p++) {
         const v = bg[p] ? 255 : SIL_FG;
         d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = v; d[p * 4 + 3] = 255;

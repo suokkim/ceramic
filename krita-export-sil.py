@@ -82,7 +82,10 @@ else:
                             n.setVisible(n is w)
                         for n in sils:
                             n.setVisible(False)
+                        # 가시성 변경 후 합성이 끝나기 전에 내보내면 Krita가 죽는다 —
+                        # refreshProjection만으론 부족하고 반드시 waitForDone까지.
                         doc.refreshProjection()
+                        doc.waitForDone()
                         doc.exportImage(os.path.join(png_dir, name + ".png"), InfoObject())
                         msg.append(u"작품 → " + name + ".png")
                     for s in sils:
@@ -103,6 +106,7 @@ else:
                     for s in sils:
                         s.setVisible(False)
                     doc.refreshProjection()
+                    doc.waitForDone()
                     doc.exportImage(os.path.join(png_dir, docname + ".png"), InfoObject())
                     msg.append(u"작품 → " + docname + ".png")
                     if sil is None:
@@ -111,6 +115,7 @@ else:
                 for n, v in orig:
                     n.setVisible(v)
                 doc.refreshProjection()
+                doc.waitForDone()
             _say(u"\n".join(msg))
         finally:
             doc.setBatchmode(False)

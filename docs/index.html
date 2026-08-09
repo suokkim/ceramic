@@ -517,42 +517,11 @@ const silhouetteOf = src => {
           s += tmp[Math.min(h - 1, y + B + 1) * w + x] - tmp[Math.max(0, y - B) * w + x];
         }
       }
-      // 국소 분산: 흰 긁힘 질감은 5x5 안에서 명암이 크게 요동친다(σ≥25) — 평균은
-      // 밝아도 오브제다. 종이의 성긴 붓자국은 평탄(σ~8)해서 안 걸린다. E[x²]−E[x]².
-      const tmp2 = new Float32Array(N), blur2 = new Float32Array(N);
-      for (let y = 0; y < h; y++) {
-        let s = 0;
-        for (let x = -B; x <= B; x++) { const v = lum[y * w + Math.min(w - 1, Math.max(0, x))]; s += v * v; }
-        for (let x = 0; x < w; x++) {
-          tmp2[y * w + x] = s / SPAN;
-          const a = lum[y * w + Math.min(w - 1, x + B + 1)], b = lum[y * w + Math.max(0, x - B)];
-          s += a * a - b * b;
-        }
-      }
-      for (let x = 0; x < w; x++) {
-        let s = 0;
-        for (let y = -B; y <= B; y++) s += tmp2[Math.min(h - 1, Math.max(0, y)) * w + x];
-        for (let y = 0; y < h; y++) {
-          blur2[y * w + x] = s / SPAN;
-          s += tmp2[Math.min(h - 1, y + B + 1) * w + x] - tmp2[Math.max(0, y - B) * w + x];
-        }
-      }
-      const vm = new Uint8Array(N);
-      for (let p = 0; p < N; p++) if (blur2[p] - blur[p] * blur[p] >= 625) vm[p] = 1;
-      // 분산은 모든 명암 경계(포트 외곽선·슬릿 가장자리)에도 얇은 띠로 생긴다 —
-      // 오프닝(침식 2→팽창 2)으로 띠는 버리고 넓은 질감 영역만 남긴다.
-      for (let it = 0; it < 2; it++) {
-        const snap = vm.slice();
-        for (let p = 0; p < N; p++) if (snap[p]) {
-          const x = p % w;
-          if (p < w || p >= N - w || x === 0 || x === w - 1 ||
-              !snap[p - w] || !snap[p + w] || !snap[p - 1] || !snap[p + 1]) vm[p] = 0;
-        }
-      }
-      dilate(vm, 2);
+      // (분산 기반 질감 판정은 시도했다 되돌림 — 슬릿·받침 틈 같은 의도된 간격의
+      // 가장자리까지 오브제로 붙어서 틈이 메꿔진다. 부작용이 이득보다 컸다.)
       const dark = new Uint8Array(N);
       for (let p = 0; p < N; p++)
-        if (lum[p] <= SIL_CUT || blur[p] <= SIL_CUT - 10 || vm[p]) dark[p] = 1;
+        if (lum[p] <= SIL_CUT || blur[p] <= SIL_CUT - 10) dark[p] = 1;
       const barrier = dark.slice();
       dilate(barrier, R);
       // 테두리에서 flood fill — 장벽 밖 픽셀만 배경
@@ -648,7 +617,7 @@ const silhouetteOf = src => {
           if (x > 0) step(p - 1);
           if (x < w - 1) step(p + 1);
         }
-        if (comp.length >= N / 100) continue;
+        if (comp.length >= N / 40) continue;
         // 둘레의 75% 이상이 오브제와 맞닿아 있으면 사실상 갇힌 것 — 채운다.
         // 완전히 갇힌 웅덩이는 100%, 좁은 균열·림의 이빨 자국은 입구만 뚫려 높고,
         // 목선의 넓은 V 파임은 윗변 전체가 하늘이라 비율이 낮아 그대로 남는다.

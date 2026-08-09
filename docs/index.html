@@ -452,15 +452,11 @@ setCols(matchMedia('(max-width: 600px)').matches ? MIN_COLS : 0);
 
 toggleBtn.onclick = () => {
   buzz();
-  const from = cols, wasSq = useSq();
-  setCols(from === 0 ? MIN_COLS : from === MAX_COLS ? 0 : from + 1);
-  // 모아보기로 처음 들어갈 때만 섞고, 나올 때는 최신순 복귀 — 둘 다 순서가 바뀌니
-  // 다시 그린다. 열 수만 바꾸는 중간 단계는 CSS 변수만 건드리므로 렌더가 필요 없고,
-  // 순서를 유지해야 같은 배치를 밀도만 바꿔 비교할 수 있다.
-  if (from === 0) { shuffleNames(); renderGrid(); }
-  else if (cols === 0) { names = original.slice(); renderGrid(); }
-  // 밀도만 바뀌었어도 칸이 작아지며 sq/th 경계를 넘었으면 다시 그려 변형을 바꾼다
-  else if (useSq() !== wasSq) renderGrid();
+  setCols(nextOf(cols));
+  // 모아보기에 닿을 때마다 새로 섞는다 — 열 수만 바뀌는 중간 단계도 포함. 큰 보기로
+  // 나오면 최신순 복귀. 어느 쪽이든 다시 그리므로 sq/th 변형 교체도 여기서 함께 된다.
+  if (cols > 0) shuffleNames(); else names = original.slice();
+  renderGrid();
 };
 // label은 button과 달리 키보드 활성화가 없으니 직접 붙인다
 document.getElementById('gridToggle').onkeydown = e => {

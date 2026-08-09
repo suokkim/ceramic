@@ -65,11 +65,27 @@ echo "$map" | while read -r n f; do
 done
 mv docs/.imghash.new docs/.imghash
 
-# 원본에서 사라진 웹 이미지 정리 (삭제 반영) — 썸네일 두 종류도 같이
+# 모아보기 실루엣(si/) — 웹용 PNG에서 오프라인 생성 (node silhouette.mjs).
+# 처음엔 브라우저가 240px JPEG 썸네일로 매번 계산했는데 노이즈·저해상도 때문에
+# 규칙이 계속 늘었다. 1600px 원본에서 한 번만 만들면 안정적이고, 결과가 파일이라
+# 눈으로 검수하거나 문제 작품만 개별 수정할 수 있다. 원본이 바뀐 것만 다시(-nt).
+# node 경로: launchd(자동업로드 앱) 환경에는 /opt/homebrew/bin이 PATH에 없다.
+NODE=$(command -v node || echo /opt/homebrew/bin/node)
+mkdir -p docs/images/si
+for w in docs/images/*.png; do
+  n=$(basename "$w" .png)
+  si="docs/images/si/$n.jpg"
+  if [ ! -f "$si" ] || [ "$w" -nt "$si" ]; then
+    "$NODE" silhouette.mjs "$w" "$si" || echo "실루엣 실패: $n"
+  fi
+done
+
+# 원본에서 사라진 웹 이미지 정리 (삭제 반영) — 썸네일·실루엣도 같이
 for w in docs/images/*.png; do
   b=$(basename "$w")
   grep -q "^$b " docs/.imghash ||
-    rm -f "$w" "docs/images/th/${b%.png}.jpg" "docs/images/sq/${b%.png}.jpg"
+    rm -f "$w" "docs/images/th/${b%.png}.jpg" "docs/images/sq/${b%.png}.jpg" \
+          "docs/images/si/${b%.png}.jpg"
 done
 # 옛 PNG 썸네일 잔여물 정리 (JPEG 전환 전에 만들어진 것)
 rm -f docs/images/th/*.png

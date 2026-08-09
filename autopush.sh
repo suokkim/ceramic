@@ -11,7 +11,7 @@ while [ $i -lt 20 ]; do
   prev="$now"; sleep 2; i=$((i+1))
 done
 
-./optimize.sh || exit 1
+./tools/optimize.sh || exit 1
 
 git add -A
 # 바뀐 게 없으면 커밋하지 않는다 — 이 스크립트가 png/를 손대며 자신을 다시 부를 수 있어서,

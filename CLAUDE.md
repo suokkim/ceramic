@@ -13,7 +13,7 @@
 - 웹용은 **긴 변 1600px**, 원본이 바뀐 것만 다시 생성.
 - 썸네일만 **JPEG**(용량). 작품 파일은 PNG 그대로.
   `docs/images/th/NN.jpg`(600px, 기본) + `docs/images/sq/NN.jpg`(240px 정사각, 폰 모아보기용)
-  + `docs/images/si/NN.svg`(벡터 실루엣, 모아보기 겹층 — `silhouette.mjs`가 생성).
+  + `docs/images/si/NN.svg`(벡터 실루엣, 모아보기 겹층 — `tools/silhouette.mjs`가 생성).
 - 실루엣을 손으로 그리려면 Krita에서 실루엣 레이어를 `png/MMDD_NN_sil.png`로 저장
   (레이어 > 가져오기/내보내기 > 레이어 저장). 있으면 자동 계산 대신 그대로 벡터화된다.
 
@@ -24,5 +24,5 @@
 매일 아침 8시에 자동 실행됨.
 
 ## 이미지 올리기
-Krita에서 `png/`로 내보내면 끝. 감시 에이전트가 `optimize.sh` → 커밋 → 푸시까지 자동 처리.
-수정본은 그냥 다시 내보내면 같은 파일을 덮어쓴다. 손으로 하려면 `./optimize.sh` 후 커밋·푸시.
+Krita에서 `png/`로 내보내면 끝. 감시 에이전트가 `tools/optimize.sh` → 커밋 → 푸시까지 자동 처리.
+수정본은 그냥 다시 내보내면 같은 파일을 덮어쓴다. 손으로 하려면 `./tools/optimize.sh` 후 커밋·푸시.

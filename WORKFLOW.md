@@ -16,9 +16,9 @@
 ## 1. 아침 — 캔버스 자동 생성 (08:00)
 
 - launchd(`com.ceramic.newdoc`)가 매일 08:00 `newdoc.sh` 실행.
-- **`template.kra`** 를 `kra/MMDD_NN.kra`로 복사해 Krita로 연다.
-  - A4 300dpi 2480×3508. 구성: 흰 배경 + 빈 그림 레이어 + **숨긴 `sil` 레이어**.
-  - NN = png/와 kra/를 둘 다 보고 정한 다음 갤러리 번호 (`numof.sh` 규칙).
+- **`tools/template.kra`** 를 `kra/MMDD_NN.kra`로 복사해 Krita로 연다.
+  - A4 300dpi 2480×3508. 구성: 작품 그룹(이름=번호, 안에 sil·sign·그림) + 흰 배경 — 그룹 이름은 생성 때 자동 기입.
+  - NN = png/와 kra/를 둘 다 보고 정한 다음 갤러리 번호 (`tools/numof.sh` 규칙).
 - 오늘 캔버스가 이미 있으면 새로 만들지 않고 열기만 한다.
 - 같은 날 캔버스 추가: `./newdoc.sh -n`.
 
@@ -44,7 +44,7 @@ Layer 1        ← 번호 없는 레이어 = 공용 배경 (모든 작품에 깔
 
 ## 3. 내보내기 — 단축키 한 번 (⌘⇧1)
 
-`krita-export-sil.py` (Ten Scripts 슬롯 1)가 문서를 보고 알아서 처리:
+`tools/krita-export-sil.py` (Ten Scripts 슬롯 1)가 문서를 보고 알아서 처리:
 
 | 문서 상태 | 동작 |
 |---|---|
@@ -59,11 +59,11 @@ Layer 1        ← 번호 없는 레이어 = 공용 배경 (모든 작품에 깔
 `png/` 폴더가 바뀌는 순간 감시 에이전트(`com.ceramic.autopush` → `autopush.sh`)가:
 
 1. 파일 크기가 멈출 때까지 대기 (내보내는 중인 파일 보호)
-2. **`optimize.sh`** 실행:
+2. **`tools/optimize.sh`** 실행:
    - `docs/images/NN.png` — 웹용 원본 (긴 변 1600px)
    - `docs/images/th/NN.jpg` — 썸네일 600px (큰 보기용)
    - `docs/images/sq/NN.jpg` — 정사각 240px (모아보기 작은 칸용)
-   - `docs/images/si/NN.svg` — **실루엣 벡터** (`silhouette.mjs`):
+   - `docs/images/si/NN.svg` — **실루엣 벡터** (`tools/silhouette.mjs`):
      `png/NN_sil.png`이 있으면 손그림 그대로 벡터화(`--manual`),
      없으면 1600px 원본에서 자동 계산(경계 추출 → 노이즈·그림자 정리 → RDP 단순화)
    - `docs/images.json` 목록·`og:image` 갱신. 원본 해시가 바뀐 것만 다시 만든다.
@@ -82,9 +82,9 @@ Layer 1        ← 번호 없는 레이어 = 공용 배경 (모든 작품에 깔
 | 상황 | 방법 |
 |---|---|
 | 작품 수정 | 그 문서 열어 고치고 ⌘⇧1 — 끝 |
-| 수제 실루엣 취소 | `png/NN_sil.png`·`docs/images/si/NN.svg` 삭제 → `./optimize.sh` |
-| 갤러리 순서 변경 | `png/` 파일 번호 수정 → `./optimize.sh` |
-| 수동 배포 | `./optimize.sh` 후 직접 커밋·푸시 (autopush와 결과 동일) |
+| 수제 실루엣 취소 | `png/NN_sil.png`·`docs/images/si/NN.svg` 삭제 → `./tools/optimize.sh` |
+| 갤러리 순서 변경 | `png/` 파일 번호 수정 → `./tools/optimize.sh` |
+| 수동 배포 | `./tools/optimize.sh` 후 직접 커밋·푸시 (autopush와 결과 동일) |
 | 자동 실행 로그 | `/tmp/ceramic-newdoc.log`, `/tmp/ceramic-autopush.log` |
 | 자동 켜고 끄기 | `launchctl bootout/bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.*.plist` |
 
@@ -92,11 +92,11 @@ Layer 1        ← 번호 없는 레이어 = 공용 배경 (모든 작품에 깔
 
 | 파일 | 역할 |
 |---|---|
-| `template.kra` | 새 캔버스 원형 (배경 + 그림 + 숨긴 sil 레이어) |
+| `tools/template.kra` | 새 캔버스 원형 (배경 + 그림 + 숨긴 sil 레이어) |
 | `newdoc.sh` | 아침 캔버스 생성 (번호 발급, 중복 방지) |
-| `numof.sh` | 파일명 → 번호 규칙의 단일 소스 (`sh numof.sh --test`) |
-| `krita-export-sil.py` | Krita 단축키 내보내기 (작품/실루엣 분리, 단일·다작품 모드) |
+| `tools/numof.sh` | 파일명 → 번호 규칙의 단일 소스 (`sh tools/numof.sh --test`) |
+| `tools/krita-export-sil.py` | Krita 단축키 내보내기 (작품/실루엣 분리, 단일·다작품 모드) |
 | `autopush.sh` + launchd | png/ 감시 → optimize → 커밋·푸시 |
-| `optimize.sh` | 웹용 4종 생성 + 목록 갱신 (바뀐 것만) |
-| `silhouette.mjs` | 실루엣 SVG 생성 (자동 계산 / `--manual` 손그림 벡터화) |
+| `tools/optimize.sh` | 웹용 4종 생성 + 목록 갱신 (바뀐 것만) |
+| `tools/silhouette.mjs` | 실루엣 SVG 생성 (자동 계산 / `--manual` 손그림 벡터화) |
 | `docs/` | GitHub Pages 사이트 루트 (정적 HTML 1장, 의존성 없음) |

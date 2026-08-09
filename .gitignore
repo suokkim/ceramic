@@ -7,3 +7,4 @@ kra/
 png/
 __pycache__/
 *.pyc
+!tools/template.kra

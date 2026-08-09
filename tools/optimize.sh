@@ -6,12 +6,12 @@
 # 여기서 번호로 바꿔버리면 다음 내보내기가 제 이름으로 다시 떨어져 같은 작품이
 # 새 번호를 받는다(실제로 겪었다). 이름은 그대로 두고 번호만 읽어 docs/에 복사한다.
 # 공개되는 웹용만 번호로 통일한다 — 갤러리 순서가 파일명 정렬이라 날짜가 끼면 꼬인다.
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."   # 저장소 루트 기준으로 동작 (tools/ 안에 있으므로 한 단계 위)
 mkdir -p docs/images/th docs/images/sq
 
 # 파일명에서 번호 읽기 — 규칙은 numof.sh 하나에만 둔다(newdoc.sh와 공유).
-# 여기서 따로 정규식을 쓰면 두 스크립트가 어긋나 번호가 충돌한다. 검사: sh numof.sh --test
-. ./numof.sh
+# 여기서 따로 정규식을 쓰면 두 스크립트가 어긋나 번호가 충돌한다. 검사: sh tools/numof.sh --test
+. ./tools/numof.sh
 
 # 번호를 못 읽는 파일에만 오늘 날짜로 번호를 붙인다 (Krita 밖에서 넣은 파일용).
 # *_sil.png(수제 실루엣, 아래 참조)는 작품이 아니므로 건드리지 않는다.
@@ -92,7 +92,7 @@ for w in docs/images/*.png; do
   manual=$(echo "$silmap" | awk -v n="$n" '$1==n {print $2}')
   if [ -n "$manual" ]; then src="$manual"; mode="--manual"; fi
   if [ ! -f "$si" ] || [ "$src" -nt "$si" ]; then
-    "$NODE" silhouette.mjs $mode "$src" "$si" || echo "실루엣 실패: $n"
+    "$NODE" tools/silhouette.mjs $mode "$src" "$si" || echo "실루엣 실패: $n"
   fi
 done
 

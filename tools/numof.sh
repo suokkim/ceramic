@@ -10,7 +10,7 @@
 # 사용:  . ./numof.sh          함수만 정의
 #        numof 0806_08.png     -> 08        (확장자 기본값 png)
 #        numof 0806_08.kra kra -> 08
-#        sh numof.sh --test    자기검사
+#        sh tools/numof.sh --test    자기검사
 
 numof() {
   # 개행을 붙여 넘긴다 — 없으면 sed도 개행 없이 뱉어 여러 번 호출한 결과가 붙어버린다

@@ -13,7 +13,7 @@
 #         ./newdoc.sh -n   같은 날에도 캔버스를 하나 더 만든다
 cd "$(dirname "$0")"
 
-TPL="template.kra"
+TPL="tools/template.kra"
 [ -f "$TPL" ] || { echo "템플릿을 못 찾음: $TPL"; exit 1; }
 
 today=$(date +%m%d)
@@ -32,7 +32,7 @@ fi
 # png/를 반드시 봐야 한다 — 하루에 여러 장을 내보내면 kra 하나에 png가 여러 개라
 # kra만 보면 이미 쓴 번호를 다시 발급한다(실제로 0807_12까지 있는데 0808_10을 만들었다).
 # 번호 읽는 규칙은 optimize.sh와 공유한다. 여기서 따로 정규식을 쓰지 말 것.
-. ./numof.sh
+. ./tools/numof.sh
 lastpng=$(maxnum png png)
 lastkra=$(maxnum kra kra)
 last=$(( lastpng > lastkra ? lastpng : lastkra ))

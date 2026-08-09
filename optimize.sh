@@ -7,7 +7,7 @@
 # 새 번호를 받는다(실제로 겪었다). 이름은 그대로 두고 번호만 읽어 docs/에 복사한다.
 # 공개되는 웹용만 번호로 통일한다 — 갤러리 순서가 파일명 정렬이라 날짜가 끼면 꼬인다.
 cd "$(dirname "$0")"
-mkdir -p docs/images/th
+mkdir -p docs/images/th docs/images/sq
 
 # 파일명에서 번호 읽기 — 규칙은 numof.sh 하나에만 둔다(newdoc.sh와 공유).
 # 여기서 따로 정규식을 쓰면 두 스크립트가 어긋나 번호가 충돌한다. 검사: sh numof.sh --test
@@ -38,9 +38,10 @@ echo "$map" | while read -r n f; do
   [ -z "$n" ] && continue
   out="docs/images/$n.png"
   th="docs/images/th/$n.jpg"
+  sq="docs/images/sq/$n.jpg"
   h=$(md5 -q "$f")
   old=$(grep "^$n.png " docs/.imghash 2>/dev/null | cut -d' ' -f2)
-  if [ "$h" != "$old" ] || [ ! -f "$out" ] || [ ! -f "$th" ]; then
+  if [ "$h" != "$old" ] || [ ! -f "$out" ] || [ ! -f "$th" ] || [ ! -f "$sq" ]; then
     cp "$f" "$out"
     sips -Z 1600 "$out" >/dev/null
     # 대문 그리드용 썸네일. 칸 폭이 250px 남짓이라 600px면 레티나에서도 충분하다.
@@ -50,15 +51,25 @@ echo "$map" | while read -r n f; do
     # 공개 원본(docs/images/)과 png/는 PNG 그대로. 썸네일만 JPEG다.
     # 축소와 변환을 한 번에 — 나눠서 하면 JPEG로 인코딩한 걸 다시 인코딩하게 된다
     sips -Z 600 -s format jpeg -s formatOptions 82 "$out" --out "$th" >/dev/null
+
+    # 폰 모아보기 전용 정사각 240px. 모아보기는 CSS로 정사각 크롭해 보여주는데
+    # 폰에서 칸이 113px(레티나 226px)이라 th의 424x600은 5배 과잉이다.
+    # 크롭과 축소는 반드시 두 번에 나눠 부를 것 — 한 번에 주면 sips가 -Z를 먼저
+    # 적용해서 169x169 같은 엉뚱한 크기가 나온다.
+    W=$(sips -g pixelWidth "$out" | tail -1 | awk '{print $2}')
+    sips -c "$W" "$W" "$out" --out "$sq.crop.png" >/dev/null
+    sips -Z 240 -s format jpeg -s formatOptions 82 "$sq.crop.png" --out "$sq" >/dev/null
+    rm -f "$sq.crop.png"
   fi
   echo "$n.png $h" >> docs/.imghash.new
 done
 mv docs/.imghash.new docs/.imghash
 
-# 원본에서 사라진 웹 이미지 정리 (삭제 반영) — 썸네일(.jpg)도 같이
+# 원본에서 사라진 웹 이미지 정리 (삭제 반영) — 썸네일 두 종류도 같이
 for w in docs/images/*.png; do
   b=$(basename "$w")
-  grep -q "^$b " docs/.imghash || rm -f "$w" "docs/images/th/${b%.png}.jpg"
+  grep -q "^$b " docs/.imghash ||
+    rm -f "$w" "docs/images/th/${b%.png}.jpg" "docs/images/sq/${b%.png}.jpg"
 done
 # 옛 PNG 썸네일 잔여물 정리 (JPEG 전환 전에 만들어진 것)
 rm -f docs/images/th/*.png

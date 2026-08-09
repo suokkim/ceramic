@@ -251,16 +251,26 @@ function slideTo(dir) {
 
 // 그리드는 names 순서 그대로 그린다. 확대 보기도 같은 names를 보므로 화면 순서와
 // 스와이프 순서가 절대 어긋나지 않는다 — 섞을 때 DOM만 뒤집으면 여기가 깨진다.
+// 폰인지는 로드 시점에 한 번만 본다 — 기본 뷰를 정하는 기준과 같은 값을 써야
+// "폰 = 모아보기 = 정사각 썸네일"이 어긋나지 않는다.
+const isPhone = matchMedia('(max-width: 600px)').matches;
+
+// 대문은 절대 원본을 받지 않는다. 원본은 뷰어에서 열 때만 — 개수가 늘어도 첫 로딩이
+// 무거워지지 않는 유일한 지점이다. 썸네일은 두 종류:
+//   sq/ 240x240  폰 모아보기 전용. 칸이 113px(레티나 226px)이라 이걸로 충분하다.
+//   th/ 424x600  그 외 전부. 데스크톱 모아보기는 칸이 365px까지 커져서 240px면 흐리고,
+//                큰 보기는 세로 비율이 필요해 정사각을 못 쓴다.
+// images.json은 작품 이름(NN.png?v=…)을 들고 있으므로 확장자만 바꾼다 — ?v= 캐시
+// 무효화가 그대로 붙어서, 그림을 고치면 썸네일 캐시도 같이 갱신된다.
+const thumbSrc = name =>
+  (isPhone && isCompact() ? 'images/sq/' : 'images/th/') + name.replace('.png', '.jpg');
+
 function renderGrid() {
   const grid = document.getElementById('grid');
   grid.replaceChildren();
   names.forEach((name, i) => {
     const thumb = new Image();
-    // 대문은 600px 썸네일(th/)만 받는다. 원본은 뷰어에서 열 때만 — 개수가 늘어도
-    // 첫 로딩이 무거워지지 않는 유일한 지점이다.
-    // 썸네일만 JPEG다(용량). images.json은 원본 이름(NN.png?v=…)을 들고 있으므로
-    // 확장자만 바꿔 쓴다 — ?v= 캐시 무효화는 그대로 붙는다.
-    thumb.src = 'images/th/' + name.replace('.png', '.jpg');
+    thumb.src = thumbSrc(name);
     thumb.alt = altOf(name); thumb.loading = 'lazy';
     thumb.onclick = () => openAt(i);
     // 썸네일도 label로 감싸야 아이폰에서 진동한다. display:contents라 그리드 배치는

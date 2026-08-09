@@ -10,7 +10,8 @@
 - 파일명은 kra·png 모두 `MMDD_NN` (예: `0806_08`). 웹용만 `NN.png`로 통일.
 - `png/` 이름은 절대 바꾸지 않는다 — Krita가 문서 이름 그대로 내보내므로 어긋난다.
 - 웹용은 **긴 변 1600px**, 원본이 바뀐 것만 다시 생성.
-- 대문 그리드용 썸네일 `docs/images/th/NN.jpg`만 **JPEG**(용량). 작품 파일은 PNG 그대로.
+- 썸네일만 **JPEG**(용량). 작품 파일은 PNG 그대로.
+  `docs/images/th/NN.jpg`(600px, 기본) + `docs/images/sq/NN.jpg`(240px 정사각, 폰 모아보기용).
 
 ## 오늘 작업 시작
 ```

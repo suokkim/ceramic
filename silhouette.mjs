@@ -25,9 +25,10 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 
-// --manual: 손으로 그린 실루엣 레이어(png/MMDD_NN_sil.png)는 **변환하지 않는다** —
-// 붓 질감·톤까지 그린 그대로 쓴다. 흰 종이에 얹혀 600px로 줄인 JPEG를 SVG로 감싸
-// 출력만 같은 규격(si/NN.svg)으로 맞춘다. 벡터화·휴리스틱 전부 없음.
+// --manual: 손으로 그린 실루엣 레이어(png/MMDD_NN_sil.png)는 **벡터화하지 않는다** —
+// 붓 질감·농담을 그린 그대로 쓰되, 톤만 자동 실루엣과 통일한다: 검정(0)→102(#666),
+// 흰 종이(255)는 그대로, 사이 값은 비례. 600px로 줄인 JPEG를 SVG로 감싸
+// 출력만 같은 규격(si/NN.svg)으로 맞춘다. 휴리스틱 없음.
 const args = process.argv.slice(2);
 const manual = args[0] === '--manual';
 const [inPng, outSvg] = manual ? args.slice(1) : args;
@@ -35,22 +36,6 @@ if (!inPng || !outSvg) { console.error('usage: node silhouette.mjs [--manual] in
 
 const tmp = mkdtempSync(join(tmpdir(), 'sil-'));
 try {
-  if (manual) {
-    // 그린 그대로: 줄이기 + 투명→흰 종이(JPEG 변환이 겸함)만 하고 SVG로 감싼다
-    const jpg = join(tmp, 'sil.jpg');
-    execFileSync('sips', ['-Z', '600', '-s', 'format', 'jpeg', '-s', 'formatOptions', '82',
-      inPng, '--out', jpg], { stdio: 'ignore' });
-    const info = execFileSync('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', jpg]).toString();
-    const mw = +info.match(/pixelWidth: (\d+)/)[1];
-    const mh = +info.match(/pixelHeight: (\d+)/)[1];
-    const b64 = readFileSync(jpg).toString('base64');
-    mkdirSync(dirname(outSvg), { recursive: true });
-    writeFileSync(outSvg,
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mw} ${mh}">` +
-      `<image width="${mw}" height="${mh}" href="data:image/jpeg;base64,${b64}"/></svg>\n`);
-    rmSync(tmp, { recursive: true, force: true });
-    process.exit(0);
-  }
   const bmpIn = join(tmp, 'in.bmp');
   execFileSync('sips', ['-s', 'format', 'bmp', inPng, '--out', bmpIn], { stdio: 'ignore' });
   const buf = readFileSync(bmpIn);
@@ -73,6 +58,37 @@ try {
       if (bpp === 4) { const a = buf[o + 3] / 255; v = v * a + 255 * (1 - a); }
       lum[y * w + x] = v;
     }
+  }
+
+  if (manual) {
+    // 그린 그대로 + 톤 통일: 검정(0) → 오브제 톤 102(#666), 흰 종이(255) 그대로,
+    // 사이 농담은 비례. 그다음 600px JPEG로 줄여 SVG로 감싼다. 그 외 처리 없음.
+    const outStride = (w * 3 + 3) & ~3;
+    const bmp = Buffer.alloc(54 + outStride * h);
+    bmp.write('BM'); bmp.writeUInt32LE(bmp.length, 2); bmp.writeUInt32LE(54, 10);
+    bmp.writeUInt32LE(40, 14); bmp.writeInt32LE(w, 18); bmp.writeInt32LE(h, 22);
+    bmp.writeUInt16LE(1, 26); bmp.writeUInt16LE(24, 28);
+    for (let y = 0; y < h; y++) {
+      const row = 54 + (h - 1 - y) * outStride;
+      for (let x = 0; x < w; x++) {
+        const v = Math.round(102 + lum[y * w + x] * 153 / 255);
+        const o = row + x * 3;
+        bmp[o] = bmp[o + 1] = bmp[o + 2] = v;
+      }
+    }
+    const bmpOut = join(tmp, 'sil.bmp'), jpg = join(tmp, 'sil.jpg');
+    writeFileSync(bmpOut, bmp);
+    execFileSync('sips', ['-Z', '600', '-s', 'format', 'jpeg', '-s', 'formatOptions', '82',
+      bmpOut, '--out', jpg], { stdio: 'ignore' });
+    const b64 = readFileSync(jpg).toString('base64');
+    const mw = w >= h ? 600 : Math.round(w * 600 / h);
+    const mh = w >= h ? Math.round(h * 600 / w) : 600;
+    mkdirSync(dirname(outSvg), { recursive: true });
+    writeFileSync(outSvg,
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mw} ${mh}">` +
+      `<image width="${mw}" height="${mh}" href="data:image/jpeg;base64,${b64}"/></svg>\n`);
+    rmSync(tmp, { recursive: true, force: true });
+    process.exit(0);
   }
 
   // --- 파라미터 (전부 크기 비례 — 브라우저 시절 240px 기준값을 스케일) ---

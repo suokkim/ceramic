@@ -472,9 +472,9 @@ setCols(0);
 toggleBtn.onclick = () => {
   buzz();
   setCols(nextOf(cols));
-  // 모아보기에 닿을 때마다 새로 섞는다 — 열 수만 바뀌는 중간 단계도 포함. 큰 보기로
+  // 첫 모아보기(3열)는 최신순 그대로, 그 다음 열부터 새로 섞는다. 큰 보기로
   // 나오면 최신순 복귀. 어느 쪽이든 다시 그리므로 sq/th 변형 교체도 여기서 함께 된다.
-  if (cols > 0) shuffleNames(); else names = original.slice();
+  if (cols > MIN_COLS) shuffleNames(); else names = original.slice();
   renderGrid();
 };
 // label은 button과 달리 키보드 활성화가 없으니 직접 붙인다

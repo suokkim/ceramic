@@ -80,6 +80,7 @@
   .grid .sil {
     position: absolute; inset: 0; height: 100%;
     pointer-events: none; opacity: var(--sil, 0);
+    transition: opacity .3s;  /* 로고로 실루엣 모드 전환 시 화면 전체가 번쩍이지 않게 */
   }
   footer {
     width: 100%; max-width: 1100px;
@@ -282,12 +283,11 @@ function renderGrid() {
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.appendChild(thumb);
-    if (isCompact()) {
-      const sil = new Image();
-      sil.className = 'sil'; sil.alt = ''; sil.loading = 'lazy';
-      sil.src = 'images/si/' + name.replace('.png', '.svg');
-      cell.appendChild(sil);
-    }
+    // 큰 보기에서도 항상 깐다 — 로고 실루엣 모드(--sil:1)가 언제든 켜질 수 있으므로.
+    const sil = new Image();
+    sil.className = 'sil'; sil.alt = ''; sil.loading = 'lazy';
+    sil.src = 'images/si/' + name.replace('.png', '.svg');
+    cell.appendChild(sil);
     // 썸네일도 label로 감싸야 아이폰에서 진동한다. display:contents라 그리드 배치는
     // cell이 담당하고 CSS는 손댈 게 없다.
     const tap = document.createElement('label');
@@ -404,12 +404,15 @@ track.addEventListener('wheel', e => {
 
 // 로고 인터랙션: 누를 때마다 원↔사각형 앞뒤가 바뀌고, 모아보기였다면 큰 보기로 돌아간다.
 // SVG는 문서 순서대로 그리므로, 맨 앞 요소를 맨 뒤로 옮기면 앞뒤가 뒤집힌다.
+// 큰 보기에서는 이 앞뒤가 곧 모드다: 사각형이 앞 = 실루엣 보기, 원이 앞 = 원본 보기.
+const squareFront = () => document.getElementById('logo').lastElementChild.tagName === 'rect';
 document.getElementById('logoBtn').onclick = () => {
   buzz();
   const svg = document.getElementById('logo');
   svg.appendChild(svg.firstElementChild);
   // 큰 보기는 최신순이 의미를 가지므로 순서 복귀 후 다시 그린다 (토글과 동일).
   if (isCompact()) { setCols(0); names = original.slice(); renderGrid(); }
+  else setCols(0);   // --sil만 갱신 (setCols가 squareFront를 반영한다)
 };
 
 // 모아보기 토글. 상태는 열 수 하나로 표현한다: 0 = 큰 보기, 3~10 = 모아보기 열 수.
@@ -457,8 +460,9 @@ function setCols(c) {
   // 칸이 작아질수록(=열이 늘수록) 실루엣 겹층이 진해진다 — CSS opacity 하나로.
   // 3열은 원본 그대로, 4열부터 실루엣이 섞이기 시작해 SIL_FULL(6열)에서 100%,
   // 그 위(7~10열)는 완전 실루엣 유지.
+  // 큰 보기는 로고 상태를 따른다: 사각형이 앞이면 실루엣 100%, 원이 앞이면 0%.
   gridEl.style.setProperty('--sil',
-    on ? Math.min(1, (c - MIN_COLS) / (SIL_FULL - MIN_COLS)) : 0);
+    on ? Math.min(1, (c - MIN_COLS) / (SIL_FULL - MIN_COLS)) : (squareFront() ? 1 : 0));
   // 열 수는 화면에 표시하지 않는다 — 그리드 자체로 보이므로. 라벨에만 남긴다
   toggleBtn.setAttribute('aria-pressed', on);
   toggleBtn.setAttribute('aria-label',

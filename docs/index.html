@@ -38,7 +38,9 @@
        투명 헤더 띠가 밑 썸네일 클릭을 막지 않게 헤더는 클릭을 통과시키고
        아이콘 두 개만 다시 받는다. */
     position: sticky; top: 0; z-index: 5; padding: 3rem 0 1rem; pointer-events: none; }
-  header label { pointer-events: auto; }
+  header label { pointer-events: auto; transition: opacity .25s; }
+  /* 스크롤 중엔 아이콘을 반투명으로 — 그림 위에 떠도 존재감을 줄인다 */
+  header.scrolled label { opacity: .5; }
   /* iOS 햅틱 편법: 아이폰 사파리는 Vibration API가 없지만, 사용자가 직접 탭해서
      <input type="checkbox" switch>가 토글되면 시스템 햅틱이 울린다(iOS 17.4+).
      그래서 탭 대상을 label로 만들어 이 숨은 스위치를 건드리게 한다. 실제 탭에만
@@ -478,6 +480,11 @@ function setCols(c) {
 
 // 기본 뷰는 화면 폭과 무관하게 큰 보기 — 최신작을 먼저 보여준다.
 setCols(0);
+
+// 스크롤이 시작되면 아이콘 반투명(CSS .scrolled). 헤더 밑으로 그림이 지나갈 때만.
+addEventListener('scroll', () =>
+  document.querySelector('header').classList.toggle('scrolled', scrollY > 40),
+  {passive: true});
 
 toggleBtn.onclick = () => {
   buzz();

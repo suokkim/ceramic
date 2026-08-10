@@ -38,9 +38,10 @@
        투명 헤더 띠가 밑 썸네일 클릭을 막지 않게 헤더는 클릭을 통과시키고
        아이콘 두 개만 다시 받는다. */
     position: sticky; top: 0; z-index: 5; padding: 3rem 0 1rem; pointer-events: none; }
-  header label { pointer-events: auto; transition: opacity .25s; }
-  /* 스크롤 중엔 아이콘을 반투명으로 — 그림 위에 떠도 존재감을 줄인다 */
-  header.scrolled label { opacity: .5; }
+  header label { pointer-events: auto; }
+  /* 스크롤 중엔 아이콘이 그림 밑으로 들어간다 — 음수 z-index는 일반 흐름의 이미지
+     아래, 배경 위에 그려진다. 그림 사이 틈으로만 아이콘이 비친다. */
+  header.scrolled { z-index: -1; }
   /* iOS 햅틱 편법: 아이폰 사파리는 Vibration API가 없지만, 사용자가 직접 탭해서
      <input type="checkbox" switch>가 토글되면 시스템 햅틱이 울린다(iOS 17.4+).
      그래서 탭 대상을 label로 만들어 이 숨은 스위치를 건드리게 한다. 실제 탭에만

@@ -39,13 +39,10 @@
        아이콘 두 개만 다시 받는다. */
     position: sticky; top: 0; z-index: 5; padding: 3rem 0 1rem; pointer-events: none; }
   header label { pointer-events: auto; }
-  /* 스크롤 중엔 아이콘이 그림 밑으로 들어간다 — 음수 z-index는 일반 흐름의 이미지
-     아래, 배경 위에 그려진다. 그림 사이 틈으로만 아이콘이 비친다. */
-  header.scrolled { z-index: -1; }
-  /* 그리드 틈은 클릭을 통과시킨다 — 틈으로 보이는 아이콘을 그대로 탭할 수 있게.
-     이미지에만 다시 켠다(.sil은 자체 pointer-events:none이 우선). */
-  .grid { pointer-events: none; }
-  .grid img { pointer-events: auto; }
+  /* 스크롤하면 아이콘이 화면 아래쪽에서 천천히 떠오른다(페이드 인). transform이라
+     레이아웃엔 영향이 없어 그리드가 튀지 않고, 아래에서는 그림 위에 떠도 무방하니
+     z-index 그대로 터치도 잘 된다. 맨 위로 돌아가면 원래 자리(상단)로 복귀. */
+  header.scrolled { transform: translateY(calc(100dvh - 100%)); animation: fadeIn .8s ease; }
   /* iOS 햅틱 편법: 아이폰 사파리는 Vibration API가 없지만, 사용자가 직접 탭해서
      <input type="checkbox" switch>가 토글되면 시스템 햅틱이 울린다(iOS 17.4+).
      그래서 탭 대상을 label로 만들어 이 숨은 스위치를 건드리게 한다. 실제 탭에만

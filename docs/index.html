@@ -25,14 +25,17 @@
     font-family: Georgia, "Apple SD Gothic Neo", serif;
     background: #d9d9d9;
     color: #3d3833;
-    padding: 3rem 1.5rem;
+    padding: 0 1.5rem 3rem;  /* 위쪽 여백은 sticky 헤더의 padding이 담당 */
     /* 내용이 짧아도(모아보기 등) 푸터가 화면 위로 떠오르지 않게 최소 화면 높이 확보 */
     display: flex; flex-direction: column; min-height: 100dvh;
   }
   /* body가 플렉스라서 width:100%를 명시해야 한다 — 플렉스에서 margin:0 auto가 걸리면
      stretch가 꺼져 내용물 크기로 쪼그라들고, 모바일에서 레이아웃이 통째로 무너진다 */
-  header { width: 100%; max-width: 1100px; margin: 0 auto 3rem;
-    display: flex; justify-content: space-between; align-items: center; }
+  header { width: 100%; max-width: 1100px; margin: 0 auto 2rem;
+    display: flex; justify-content: space-between; align-items: center;
+    /* 스크롤해도 상단 고정. 배경을 채워 밑으로 지나가는 그리드를 가린다.
+       z-index는 viewer(10)보다 낮게 — 확대 보기가 헤더를 덮어야 한다. */
+    position: sticky; top: 0; z-index: 5; background: #d9d9d9; padding: 3rem 0 1rem; }
   /* iOS 햅틱 편법: 아이폰 사파리는 Vibration API가 없지만, 사용자가 직접 탭해서
      <input type="checkbox" switch>가 토글되면 시스템 햅틱이 울린다(iOS 17.4+).
      그래서 탭 대상을 label로 만들어 이 숨은 스위치를 건드리게 한다. 실제 탭에만

@@ -181,9 +181,8 @@
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
-// names = 지금 화면에 그려진 순서(섞이면 바뀜), original = images.json 원본 순서(최신순).
-// 큰 보기로 돌아올 때 최신순을 복원해야 해서 원본을 따로 들고 있는다.
-let names = [], original = [], n = 0, cur = 0;   // cur = 지금 보이는 이미지 인덱스
+// names = images.json 순서 그대로(최신순).
+let names = [], n = 0, cur = 0;   // cur = 지금 보이는 이미지 인덱스
 
 const srcOf = name => 'images/' + name;
 const altOf = name => name.split('?')[0].replace('.png', '');
@@ -313,17 +312,10 @@ function renderGrid() {
   });
 }
 
-// Fisher-Yates.
-function shuffleNames() {
-  for (let i = names.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [names[i], names[j]] = [names[j], names[i]];
-  }
-}
 const isCompact = () => document.getElementById('grid').classList.contains('compact');
 
 fetch('images.json', {cache: 'no-store'}).then(r => r.json()).then(list => {
-  original = list; names = list.slice(); n = list.length;
+  names = list; n = list.length;
   renderGrid();
 });
 
@@ -418,24 +410,20 @@ track.addEventListener('wheel', e => {
   slideTo(e.deltaX > 0 ? 1 : -1);
 }, {passive: false});
 
-// 로고 인터랙션: 누를 때마다 원↔사각형 앞뒤가 바뀌고, 모아보기였다면 큰 보기로 돌아간다.
+// 로고 인터랙션: 누를 때마다 원↔사각형 앞뒤가 바뀐다 — 이 앞뒤가 곧 모드다:
+// 사각형이 앞 = 실루엣 보기, 원이 앞 = 입체(원본) 보기. 큰 보기·모아보기 공통.
 // SVG는 문서 순서대로 그리므로, 맨 앞 요소를 맨 뒤로 옮기면 앞뒤가 뒤집힌다.
-// 큰 보기에서는 이 앞뒤가 곧 모드다: 사각형이 앞 = 실루엣 보기, 원이 앞 = 원본 보기.
 const squareFront = () => document.getElementById('logo').lastElementChild.tagName === 'rect';
 document.getElementById('logoBtn').onclick = () => {
   buzz();
   const svg = document.getElementById('logo');
   svg.appendChild(svg.firstElementChild);
-  // 큰 보기는 최신순이 의미를 가지므로 순서 복귀 후 다시 그린다 (토글과 동일).
-  if (isCompact()) { setCols(0); names = original.slice(); renderGrid(); }
-  else setCols(0);   // --sil만 갱신 (setCols가 squareFront를 반영한다)
+  setCols(cols);   // 뷰는 유지, --sil(실루엣↔입체)만 갱신
 };
 
-// 모아보기 토글. 상태는 열 수 하나로 표현한다: 0 = 큰 보기, 3~10 = 모아보기 열 수.
-// 누를 때마다 0 → 3 → 4 → … → 10 → 0 으로 한 바퀴 돈다.
-const MIN_COLS = 3, MAX_COLS = 10;
-const SIL_FULL = 9;   // 이 열 수부터 실루엣 100% (3열 0% → 4~8열 점진 → 9열부터 완전)
-const STEPS = MAX_COLS - MIN_COLS + 1;   // 3열부터 큰 보기까지 순환 단계 수
+// 모아보기 토글. 상태는 열 수 하나로 표현한다: 0 = 큰 보기, 3~8 = 모아보기 열 수.
+// 누를 때마다 0 → 3 → 4 → … → 8 → 0 으로 한 바퀴 돈다.
+const MIN_COLS = 3, MAX_COLS = 8;
 const gridEl = document.getElementById('grid');
 const toggleBtn = document.getElementById('gridToggle');
 const toggleIcon = document.getElementById('toggleIcon');
@@ -450,19 +438,25 @@ const BIG_PATH = 'M18 0 v14 a4 4 0 0 1 -4 4 h-10 a4 4 0 0 1 -4 -4 v-10 a4 4 0 0 
 
 // **아이콘은 지금 상태가 아니라 다음에 갈 곳을 그린다.** 순환이 여러 단계라 상태를
 // 그리면 3열에서 "큰 보기" 사각형이 떠 다음 탭이 4열인 걸 속이게 된다.
+// 3열 = 3×3 점 격자(기존 모아보기 아이콘), 4~8열 = 큰 보기 사각형 안에 열 수 숫자,
+// 큰 보기 = 사각형만.
 function drawToggleIcon(next) {
-  // 격자는 **항상 3×3**. 열 수를 점 개수로 그리면 5열부터 점이 뭉개져 읽히지 않았다.
-  // 대신 점 사이 간격이 순환 단계에 비례해 차오른다: 3열=빈 간격 → … → 큰 보기=꽉 찬 사각형.
-  // 점:간격 10:3 (예전 3열 아이콘과 동일: 5px 점, 1.5px 간격)
-  const t = (next === 0 ? STEPS : next - MIN_COLS) / STEPS;
-  const d = 18 / (1.3 * 3 - 0.3), step = d * 1.3;
-  let s = `<path d="${BIG_PATH}" opacity="${t.toFixed(3)}"/>`;
-  if (t < 1)
+  if (next === MIN_COLS) {
+    // 점:간격 10:3 (예전 3열 아이콘과 동일: 5px 점, 1.5px 간격)
+    const d = 18 / (1.3 * 3 - 0.3), step = d * 1.3;
+    let s = '';
     for (let y = 0; y < 3; y++)
       for (let x = 0; x < 3; x++)
         s += `<rect x="${(x * step).toFixed(2)}" y="${(y * step).toFixed(2)}"`
            + ` width="${d.toFixed(2)}" height="${d.toFixed(2)}"/>`;
-  toggleIcon.innerHTML = s;
+    toggleIcon.innerHTML = s;
+    return;
+  }
+  // 숫자는 배경색으로 뚫어 새긴다
+  toggleIcon.innerHTML = `<path d="${BIG_PATH}"/>` + (next === 0 ? '' :
+    `<text x="9" y="9.5" text-anchor="middle" dominant-baseline="central"` +
+    ` font-family="Helvetica Neue, sans-serif" font-size="11" font-weight="600"` +
+    ` fill="#d9d9d9">${next}</text>`);
 }
 
 
@@ -473,12 +467,8 @@ function setCols(c) {
   if (on) gridEl.style.setProperty('--cols', c);
   const next = nextOf(c);
   drawToggleIcon(next);
-  // 칸이 작아질수록(=열이 늘수록) 실루엣 겹층이 진해진다 — CSS opacity 하나로.
-  // 3열은 원본 그대로, 4열부터 실루엣이 섞이기 시작해 SIL_FULL(6열)에서 100%,
-  // 그 위(7~10열)는 완전 실루엣 유지.
-  // 큰 보기는 로고 상태를 따른다: 사각형이 앞이면 실루엣 100%, 원이 앞이면 0%.
-  gridEl.style.setProperty('--sil',
-    on ? Math.min(1, (c - MIN_COLS) / (SIL_FULL - MIN_COLS)) : (squareFront() ? 1 : 0));
+  // 실루엣은 뷰와 무관하게 로고 상태 하나로: 사각형이 앞이면 실루엣, 원이 앞이면 입체.
+  gridEl.style.setProperty('--sil', squareFront() ? 1 : 0);
   // 열 수는 화면에 표시하지 않는다 — 그리드 자체로 보이므로. 라벨에만 남긴다
   toggleBtn.setAttribute('aria-pressed', on);
   toggleBtn.setAttribute('aria-label',
@@ -499,10 +489,7 @@ addEventListener('scroll', () =>
 toggleBtn.onclick = () => {
   buzz();
   setCols(nextOf(cols));
-  // 첫 모아보기(3열)는 최신순 그대로, 그 다음 열부터 새로 섞는다. 큰 보기로
-  // 나오면 최신순 복귀. 어느 쪽이든 다시 그리므로 sq/th 변형 교체도 여기서 함께 된다.
-  if (cols > MIN_COLS) shuffleNames(); else names = original.slice();
-  renderGrid();
+  renderGrid();   // 순서는 항상 최신순 — sq/th 변형 교체만을 위해 다시 그린다
 };
 // label은 button과 달리 키보드 활성화가 없으니 직접 붙인다
 document.getElementById('gridToggle').onkeydown = e => {

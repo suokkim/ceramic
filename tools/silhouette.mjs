@@ -71,14 +71,19 @@ try {
     for (let y = 0; y < h; y++) {
       const row = 54 + (h - 1 - y) * outStride;
       for (let x = 0; x < w; x++) {
-        const v = Math.round(102 + lum[y * w + x] * 153 / 255);
+        // 톤 통일 후 하이라이트 굽기(tone.mjs와 같은 커브) — 썸네일에 톤을 미리
+      // 구우면서 CSS 필터가 사라졌으므로 실루엣도 흰 종이(255→229)를 여기서 누른다
+      let v = Math.round(102 + lum[y * w + x] * 153 / 255);
+        if (v > 204) v = 204 + ((v - 204) >> 1);
         const o = row + x * 3;
         bmp[o] = bmp[o + 1] = bmp[o + 2] = v;
       }
     }
     const bmpOut = join(tmp, 'sil.bmp'), jpg = join(tmp, 'sil.jpg');
     writeFileSync(bmpOut, bmp);
-    execFileSync('sips', ['-Z', '600', '-s', 'format', 'jpeg', '-s', 'formatOptions', '82',
+    // q70: 단색 면 위주라 82와 차이가 안 보이는데 용량은 ~30% 준다(모아보기는
+    // 전 작품이 한 화면이라 lazy가 무력 — si가 장수에 비례해 통째로 로딩된다)
+    execFileSync('sips', ['-Z', '600', '-s', 'format', 'jpeg', '-s', 'formatOptions', '70',
       bmpOut, '--out', jpg], { stdio: 'ignore' });
     const b64 = readFileSync(jpg).toString('base64');
     const mw = w >= h ? 600 : Math.round(w * 600 / h);
@@ -337,7 +342,7 @@ try {
   mkdirSync(dirname(outSvg), { recursive: true });
   writeFileSync(outSvg,
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">` +
-    `<rect width="100%" height="100%" fill="#fff"/>` +
+    `<rect width="100%" height="100%" fill="#e6e6e6"/>` +  /* 톤 구운 썸네일의 흰색(229)과 맞춤 */
     `<path d="${paths.join('')}" fill="#666" fill-rule="evenodd"/></svg>\n`);
 } finally {
   rmSync(tmp, { recursive: true, force: true });

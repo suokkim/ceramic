@@ -35,6 +35,8 @@ map=$(for f in $(ls -tr png/*.png 2>/dev/null); do
 # 웹용 이미지 생성 — 원본이 바뀐 것만.
 # sips 출력은 같은 입력이라도 실행할 때마다 바이트가 달라진다(내부 타임스탬프). 매번
 # 전부 다시 만들면 바뀐 게 없어도 git에 2MB짜리 변경이 계속 쌓이므로 원본 해시로 거른다.
+# node 경로: launchd(자동업로드 앱) 환경에는 /opt/homebrew/bin이 PATH에 없다.
+NODE=$(command -v node || echo /opt/homebrew/bin/node)
 : > docs/.imghash.new
 echo "$map" | while read -r n f; do
   [ -z "$n" ] && continue
@@ -62,6 +64,9 @@ echo "$map" | while read -r n f; do
     sips -c "$W" "$W" "$out" --out "$sq.crop.png" >/dev/null
     sips -Z 240 -s format jpeg -s formatOptions 82 "$sq.crop.png" --out "$sq" >/dev/null
     rm -f "$sq.crop.png"
+    # 흰 배경 톤을 썸네일에 미리 굽는다(예전 CSS dimWhite 필터의 파일판) — 자세한
+    # 커브는 tone.mjs 참고. 웹용 원본($out)은 뷰어 전용이라 톤을 얹지 않는다.
+    "$NODE" tools/tone.mjs "$th" "$sq"
   fi
   echo "$n.png $h" >> docs/.imghash.new
 done
@@ -71,8 +76,6 @@ mv docs/.imghash.new docs/.imghash
 # 처음엔 브라우저가 240px JPEG 썸네일로 매번 계산했는데 노이즈·저해상도 때문에
 # 규칙이 계속 늘었다. 1600px 원본에서 한 번만 만들면 안정적이고, 결과가 파일이라
 # 눈으로 검수하거나 문제 작품만 개별 수정할 수 있다. 원본이 바뀐 것만 다시(-nt).
-# node 경로: launchd(자동업로드 앱) 환경에는 /opt/homebrew/bin이 PATH에 없다.
-NODE=$(command -v node || echo /opt/homebrew/bin/node)
 mkdir -p docs/images/si
 
 # 수제 실루엣 오버라이드: Krita에서 실루엣을 별도 레이어에 그렸다면
@@ -106,13 +109,18 @@ done
 # 옛 PNG 썸네일 잔여물 정리 (JPEG 전환 전에 만들어진 것)
 rm -f docs/images/th/*.png
 
-# 최근 작업(큰 번호)이 먼저 보이도록 역순 정렬. ?v=는 **원본** 해시라 실행할 때마다
-# 흔들리지 않고, 그림을 실제로 고쳤을 때만 바뀌어 캐시를 무효화한다.
+# 최근 작업(큰 번호)이 먼저 보이도록 역순 정렬. ?v=는 원본+실루엣 해시라 실행할
+# 때마다 흔들리지 않고, 그림이나 실루엣을 실제로 고쳤을 때만 바뀌어 캐시를
+# 무효화한다. 실루엣을 합치는 이유: 작품은 그대로 두고 수제 실루엣만 다시 그리면
+# URL이 안 바뀌어 기기들이 옛 실루엣을 계속 보여줬다(0810_22에서 실제로 겪었다).
 python3 -c '
-import json
+import json, hashlib, os
 entries = []
 for line in open("docs/.imghash"):
     name, h = line.split()
+    si = "docs/images/si/" + name.replace(".png", ".svg")
+    if os.path.exists(si):
+        h = hashlib.md5((h + hashlib.md5(open(si, "rb").read()).hexdigest()).encode()).hexdigest()
     entries.append(name + "?v=" + h[:8])
 entries.sort(reverse=True)
 print(json.dumps(entries, ensure_ascii=False))

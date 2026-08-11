@@ -161,9 +161,10 @@
   <input type="checkbox" switch id="hap" tabindex="-1" aria-hidden="true">
   <label for="hap" id="logoBtn" aria-label="Ceramic">
     <svg id="logo" width="56" height="56" viewBox="0 0 56 56">
-      <!-- 블랙 사각형 + 회색 원 겹침 (스케치 참고), 외곽선 없음. 클릭하면 앞뒤가 바뀐다 -->
-      <rect x="24" y="8" width="26" height="26" fill="#3a3a3a"/>
+      <!-- 블랙 사각형 + 회색 원 겹침 (스케치 참고), 외곽선 없음. 클릭하면 앞뒤가 바뀐다.
+           사각형이 뒤(마지막 = 앞에 그려짐)라 기본이 실루엣 모드다 — 큰 보기 기본값과 짝. -->
       <circle cx="24" cy="30" r="16" fill="#b5b5b5"/>
+      <rect x="24" y="8" width="26" height="26" fill="#3a3a3a"/>
     </svg>
   </label>
   <!-- 아이콘은 setCols()가 그린다. 2단계 토글일 땐 아이콘 두 개를 CSS로 갈아끼웠지만,

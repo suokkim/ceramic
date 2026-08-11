@@ -478,10 +478,10 @@ const nextOf = c => c === 0 ? MIN_COLS : c === MAX_COLS ? 0 : c + 1;
 // 모서리는 라운드. 각진 모서리(18,0)에서 시계 방향으로 돌며 4·8·10시에 반지름 4 arc.
 const BIG_PATH = 'M18 0 v14 a4 4 0 0 1 -4 4 h-10 a4 4 0 0 1 -4 -4 v-10 a4 4 0 0 1 4 -4 z';
 
-// 아이콘은 **지금 상태**를 그린다: 큰 보기 = 사각형만, 3열 = 3×3 점 격자(모아보기
-// 아이콘 = 3열 그 자체), 4~8열 = 사각형 안에 현재 열 수 숫자.
+// 큰 보기 = 3×3 점 격자(모아보기로 가는 버튼), 모아보기 3~8열 = 사각형 안에
+// 현재 열 수 숫자(지금 몇 열인지 보여준다).
 function drawToggleIcon(c) {
-  if (c === MIN_COLS) {
+  if (c === 0) {
     // 점:간격 10:3 (예전 3열 아이콘과 동일: 5px 점, 1.5px 간격)
     const d = 18 / (1.3 * 3 - 0.3), step = d * 1.3;
     let s = '';
@@ -493,10 +493,10 @@ function drawToggleIcon(c) {
     return;
   }
   // 숫자는 배경색으로 뚫어 새긴다
-  toggleIcon.innerHTML = `<path d="${BIG_PATH}"/>` + (c === 0 ? '' :
+  toggleIcon.innerHTML = `<path d="${BIG_PATH}"/>` +
     `<text x="9" y="9.5" text-anchor="middle" dominant-baseline="central"` +
     ` font-family="Helvetica Neue, sans-serif" font-size="11" font-weight="600"` +
-    ` fill="#d9d9d9">${c}</text>`);
+    ` fill="#d9d9d9">${c}</text>`;
 }
 
 

@@ -226,9 +226,16 @@ const setY = (px, animate) => {
 let pending = null;   // {dir, timer}
 function commit() {
   if (!pending) return;
+  const dir = pending.dir;
   clearTimeout(pending.timer);
-  cur = ((cur + pending.dir) % n + n) % n;
+  cur = ((cur + dir) % n + n) % n;
   pending = null;
+  // 슬라이드 DOM을 실제로 회전 — 방금 화면에 들어온 장이 그대로 가운데가 된다.
+  // 가운데 장의 src를 갈아끼우면 새 그림이 디코딩되기 전 한 프레임 동안 이전
+  // 그림이 비쳐 보였다(스와이프 직후 번쩍임). 새 src는 화면 밖 가장자리 장만 받는다.
+  if (dir === 1) { track.appendChild(track.firstElementChild); slides.push(slides.shift()); }
+  if (dir === -1) { track.prepend(track.lastElementChild); slides.unshift(slides.pop()); }
+  slides.forEach((s, j) => s.classList.toggle('pop', j === 1)); // 열림 애니메이션은 가운데만
   show();
   setY(0, false);
 }

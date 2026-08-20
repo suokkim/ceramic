@@ -235,7 +235,9 @@ function commit() {
   // 그림이 비쳐 보였다(스와이프 직후 번쩍임). 새 src는 화면 밖 가장자리 장만 받는다.
   if (dir === 1) { track.appendChild(track.firstElementChild); slides.push(slides.shift()); }
   if (dir === -1) { track.prepend(track.lastElementChild); slides.unshift(slides.pop()); }
-  slides.forEach((s, j) => s.classList.toggle('pop', j === 1)); // 열림 애니메이션은 가운데만
+  // 여기서 .pop을 붙이면 안 된다 — 뷰어가 열린 채라 열림 애니메이션이 즉시 재생돼
+  // 그림이 어긋났다 제자리로 가는 것처럼 보인다. .pop은 openAt에서만 단다.
+  slides.forEach(s => s.classList.remove('pop'));
   show();
   setY(0, false);
 }
@@ -339,6 +341,7 @@ function openAt(i) {
   cur = i;
   show();
   setY(0, false);
+  slides[1].classList.add('pop');  // 열림 애니메이션은 가운데 장에만
   viewer.classList.add('open');
 }
 

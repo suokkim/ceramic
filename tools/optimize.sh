@@ -33,6 +33,20 @@ map=$(for f in $(ls -tr png/*.png 2>/dev/null); do
         n=$(numof "$(basename "$f")"); [ -n "$n" ] && echo "$n $f"
       done | awk '{m[$1]=$2} END {for (k in m) print k, m[k]}' | sort)
 
+# 예외: 원작(무접미사)이 없는 번호는 **가장 낮은 버전을 원작으로 승격**한다 —
+# 버전만 올라온 작품이 고아로 숨지 않게. 승격판은 대표판 파이프라인(썸네일·실루엣)을
+# 그대로 타고, 아래 버전 루프에서는 제외해 같은 그림이 두 번 나오지 않는다.
+# 진짜 원작이 나중에 들어오면 맵에서 밀려나 자동으로 버전 슬롯으로 돌아간다.
+promo=$(for f in $(ls png/*_v[0-9]*.png 2>/dev/null); do
+          # 명령 치환 안의 case는 패턴에 여는 괄호가 필수 — 없으면 )가 $( )를 닫아버린다
+          case "$f" in (*_sil.png) continue;; esac
+          nv=$(verof "$(basename "$f")"); [ -n "$nv" ] && echo "$nv $f"
+        done | sort -k1,1 -k2,2n |
+        while read -r n k f; do
+          echo "$map" | grep -q "^$n " || echo "$n $f"
+        done | awk '!seen[$1]++')
+[ -n "$promo" ] && map=$(printf '%s\n%s' "$map" "$promo" | sort)
+
 # 웹용 이미지 생성 — 원본이 바뀐 것만.
 # sips 출력은 같은 입력이라도 실행할 때마다 바이트가 달라진다(내부 타임스탬프). 매번
 # 전부 다시 만들면 바뀐 게 없어도 git에 2MB짜리 변경이 계속 쌓이므로 원본 해시로 거른다.
@@ -77,6 +91,7 @@ done
 # (대표판)만 나오니 썸네일(th/sq)도, 실루엣(si)도 원작 것을 그대로 쓴다.
 for f in $(ls -tr png/*_v[0-9]*.png 2>/dev/null); do
   case "$f" in *_sil.png) continue;; esac
+  case "$promo" in *" $f"*) continue;; esac   # 원작으로 승격된 버전은 버전 슬롯에서 제외
   nv=$(verof "$(basename "$f")"); [ -z "$nv" ] && continue
   n=${nv% *}; k=${nv#* }
   out="docs/images/$n-$k.png"

@@ -142,6 +142,12 @@
   #track img { max-width: 92%; max-height: 92%; display: block; cursor: zoom-out;
     border-radius: 14px; border-top-right-radius: 0;
     -webkit-user-drag: none; user-select: none; }
+  /* 버전 점 표시: 버전이 여럿인 작품에서만 하단 중앙에 ● ○ ○ (좌우 스와이프로 넘김) */
+  #vdots { position: absolute; left: 0; right: 0;
+    bottom: max(1.2rem, env(safe-area-inset-bottom));
+    display: flex; justify-content: center; gap: 7px; pointer-events: none; }
+  #vdots i { width: 6px; height: 6px; border-radius: 50%; background: #fff; opacity: .3; }
+  #vdots i.on { opacity: .9; }
 </style>
 </head>
 <body>
@@ -165,13 +171,15 @@
 </header>
 <div class="grid" id="grid"></div>
 <!-- label인 이유: 확대 화면 어디를 탭하든 #hap 스위치가 토글돼 아이폰 햅틱이 울린다 -->
-<label for="hap" id="viewer" role="dialog" aria-modal="true"><div id="track"></div></label>
+<label for="hap" id="viewer" role="dialog" aria-modal="true"><div id="track"></div><div id="vdots"></div></label>
 <footer>동글사각&ensp;|&ensp;CIRCLE SQUARE © 2026</footer>
 <script>
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
-// names = images.json 순서 그대로(최신순).
-let names = [], n = 0, cur = 0;   // cur = 지금 보이는 이미지 인덱스
+// names = images.json 순서 그대로(최신순). 작품당 배열 [원작, v2, v3, …] —
+// 첫 요소가 대표판(그리드·모아보기에 보이는 판), 나머지는 뷰어에서 좌우로만 보인다.
+let names = [], n = 0, cur = 0;   // cur = 지금 보이는 작품 인덱스
+let ver = 0;                      // 지금 보이는 버전 인덱스 (작품이 바뀌면 0으로)
 
 const srcOf = name => 'images/' + name;
 const altOf = name => name.split('?')[0].replace('.png', '');
@@ -185,17 +193,53 @@ const slides = [0, 1, 2].map(() => {
 });
 slides[1].classList.add('pop');   // 열림 애니메이션은 항상 가운데 장에만
 
-// 현재 인덱스 기준으로 3장의 내용을 채운다
+// 현재 인덱스 기준으로 3장의 내용을 채운다. 가운데만 현재 버전, 위아래는 각 작품의 대표판.
 function show() {
   if (!n) return;
   if (zoom > 1) resetZoom(false);   // 장이 바뀌면 확대 해제
   [(cur - 1 + n) % n, cur, (cur + 1) % n].forEach((idx, j) => {
-    const name = names[idx];
+    const name = j === 1 ? names[idx][ver] : names[idx][0];
     if (slides[j].getAttribute('src') !== srcOf(name)) {
       slides[j].src = srcOf(name);
       slides[j].alt = altOf(name);
     }
   });
+  drawVer();
+  // 이웃 버전 미리 데우기 — 좌우 스와이프 때 디코드 대기가 없도록
+  const vs = names[cur];
+  if (vs.length > 1) [ver + 1, ver - 1].forEach(k =>
+    new Image().src = srcOf(vs[(k + vs.length) % vs.length]));
+}
+
+// 버전 점 표시: 버전이 있는 작품에서만 하단에 ● ○ ○
+const vdots = document.getElementById('vdots');
+function drawVer() {
+  vdots.innerHTML = names[cur].length > 1
+    ? names[cur].map((_, k) => `<i${k === ver ? ' class="on"' : ''}></i>`).join('') : '';
+}
+
+// 좌우 = 같은 작품의 버전 넘김. 나가는 쪽으로 밀어낸 뒤 새 버전을 디코드해
+// 반대쪽에서 들여온다 — 디코드를 기다렸다 src를 바꾸므로 이전 그림이 안 비친다.
+async function verTo(dir) {
+  const vs = names[cur];
+  const img = slides[1];
+  // dir 0 = 제자리 복귀 (짧은 드래그·버전 없는 작품의 고무줄)
+  if (!dir || vs.length < 2) { img.style.transition = EASE; img.style.transform = ''; return; }
+  buzz();
+  ver = (ver + dir + vs.length) % vs.length;
+  img.style.transition = 'transform .2s ease';
+  img.style.transform = `translateX(${-dir * innerWidth}px)`;
+  const pre = new Image(); pre.src = srcOf(vs[ver]);
+  try { await pre.decode(); } catch {}
+  // 디코드를 기다리는 사이 작품이 넘어갔으면(슬라이드 회전) 여기서 손을 뗀다
+  if (slides[1] !== img) { img.style.transform = ''; return; }
+  img.src = pre.src; img.alt = altOf(vs[ver]);
+  img.style.transition = 'none';
+  img.style.transform = `translateX(${dir * innerWidth}px)`;
+  img.getBoundingClientRect();   // 위치를 강제 확정해야 다음 transition이 먹는다
+  img.style.transition = EASE;
+  img.style.transform = '';
+  drawVer();
 }
 
 // 넘김 전환: 시작은 손가락 속도를 이어받아 빠르게, 끝은 길게 미끄러지며 안착(easeOutExpo).
@@ -229,6 +273,7 @@ function commit() {
   const dir = pending.dir;
   clearTimeout(pending.timer);
   cur = ((cur + dir) % n + n) % n;
+  ver = 0;   // 작품이 바뀌면 항상 대표판(원작)부터
   pending = null;
   // 슬라이드 DOM을 실제로 회전 — 방금 화면에 들어온 장이 그대로 가운데가 된다.
   // 가운데 장의 src를 갈아끼우면 새 그림이 디코딩되기 전 한 프레임 동안 이전
@@ -284,7 +329,8 @@ const thumbSrc = name =>
 function renderGrid() {
   const grid = document.getElementById('grid');
   grid.replaceChildren();
-  names.forEach((name, i) => {
+  names.forEach((work, i) => {
+    const name = work[0];   // 그리드는 항상 대표판(원작)만
     const thumb = new Image();
     thumb.src = thumbSrc(name);
     thumb.alt = altOf(name); thumb.loading = 'lazy';
@@ -338,7 +384,7 @@ function openAt(i) {
   buzz();
   commit();
   lockPage();
-  cur = i;
+  cur = i; ver = 0;
   show();
   setY(0, false);
   slides[1].classList.add('pop');  // 열림 애니메이션은 가운데 장에만
@@ -365,7 +411,7 @@ const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].cl
 
 // 제스처는 iOS에서 가장 오래 검증된 터치 이벤트로만. 포인터 캡처는 iOS에서 클릭·취소
 // 동작이 불안정해 쓰지 않는다. 데스크톱 마우스는 아래에서 따로 처리.
-let tx = 0, ty = 0, tdy = 0, tdrag = false;
+let tx = 0, ty = 0, tdx = 0, tdy = 0, tdrag = false, hdrag = false;
 track.addEventListener('touchstart', e => {
   if (e.touches.length >= 2) {    // 두 손가락 = 핀치 시작. 스와이프 판정은 버린다
     pinch = { d0: dist(e.touches), z0: zoom,
@@ -378,7 +424,7 @@ track.addEventListener('touchstart', e => {
   commit();                       // 어떤 상태였든 여기서 리셋 — 먹통 원천 차단
   tx = e.touches[0].clientX; ty = e.touches[0].clientY;
   panX0 = zx; panY0 = zy;
-  tdy = 0; tdrag = false;
+  tdx = tdy = 0; tdrag = hdrag = false;
   track.style.transition = 'none';
 }, {passive: true});
 track.addEventListener('touchmove', e => {
@@ -398,9 +444,18 @@ track.addEventListener('touchmove', e => {
     return;
   }
   tdy = e.touches[0].clientY - ty;
-  const dx = e.touches[0].clientX - tx;
-  if (!tdrag && Math.abs(tdy) > 6 && Math.abs(tdy) > Math.abs(dx)) tdrag = true;
+  tdx = e.touches[0].clientX - tx;
+  // 먼저 6px를 넘는 순간 축을 확정 — 세로 = 작품 넘김, 가로 = 버전 넘김
+  if (!tdrag && !hdrag && (Math.abs(tdy) > 6 || Math.abs(tdx) > 6)) {
+    if (Math.abs(tdy) >= Math.abs(tdx)) tdrag = true; else hdrag = true;
+  }
   if (tdrag) { e.preventDefault(); setY(tdy, false); }
+  if (hdrag) {
+    e.preventDefault();
+    // 버전이 없으면 1/4만 따라오는 고무줄 — 끌리는 감으로 "여긴 없다"를 알린다
+    slides[1].style.transition = 'none';
+    slides[1].style.transform = `translateX(${names[cur].length > 1 ? tdx : tdx / 4}px)`;
+  }
 }, {passive: false});
 // 넘김 확정 기준: 화면 높이의 18% (데스크톱은 110px 상한). 35%는 끌어야 하는 거리가
 // 너무 길었다 — 짧게 밀어도 넘어가되, 6px 드래그 판정이 있어 탭과는 안 섞인다.
@@ -417,35 +472,47 @@ track.addEventListener('touchend', e => {
     return;
   }
   if (zoom > 1) return;           // 패닝 종료 — 넘김 아님
+  if (hdrag) { verTo(Math.abs(tdx) > THRESHOLD() ? (tdx < 0 ? 1 : -1) : 0); return; }
   if (!tdrag) return;             // 탭은 click 핸들러가 닫기로 처리
   slideTo(Math.abs(tdy) > THRESHOLD() ? (tdy < 0 ? 1 : -1) : 0);
 }, {passive: true});
-track.addEventListener('touchcancel', () => { pinch = null; if (tdrag) slideTo(0); }, {passive: true});
+track.addEventListener('touchcancel', () => {
+  pinch = null;
+  if (tdrag) slideTo(0);
+  if (hdrag) verTo(0);
+}, {passive: true});
 
-// 데스크톱 마우스 드래그 (세로)
-let my = 0, mdy = 0, mdown = false, mdrag = false;
+// 데스크톱 마우스 드래그 — 터치와 같은 축 규칙: 세로 = 작품, 가로 = 버전
+let mx = 0, my = 0, mdx = 0, mdy = 0, mdown = false, mdrag = false, hmdrag = false;
 track.addEventListener('mousedown', e => {
   if (e.button) return;
   commit();
-  mdown = true; mdrag = false; mdy = 0; my = e.clientY;
+  mdown = true; mdrag = hmdrag = false; mdx = mdy = 0; mx = e.clientX; my = e.clientY;
   track.style.transition = 'none';
   e.preventDefault();             // 이미지 기본 드래그 방지
 });
 addEventListener('mousemove', e => {
   if (!mdown) return;
-  mdy = e.clientY - my;
-  if (!mdrag && Math.abs(mdy) > 6) mdrag = true;
+  mdx = e.clientX - mx; mdy = e.clientY - my;
+  if (!mdrag && !hmdrag && (Math.abs(mdy) > 6 || Math.abs(mdx) > 6)) {
+    if (Math.abs(mdy) >= Math.abs(mdx)) mdrag = true; else hmdrag = true;
+  }
   if (mdrag) setY(mdy, false);
+  if (hmdrag) {
+    slides[1].style.transition = 'none';
+    slides[1].style.transform = `translateX(${names[cur].length > 1 ? mdx : mdx / 4}px)`;
+  }
 });
 addEventListener('mouseup', () => {
   if (!mdown) return;
   mdown = false;
   if (mdrag) slideTo(Math.abs(mdy) > THRESHOLD() ? (mdy < 0 ? 1 : -1) : 0);
+  if (hmdrag) verTo(Math.abs(mdx) > THRESHOLD() ? (mdx < 0 ? 1 : -1) : 0);
 });
 
 // 탭/클릭(드래그·핀치가 아니었을 때만) → 확대 중이면 원래 크기로, 아니면 닫기
 track.addEventListener('click', () => {
-  if (tdrag || mdrag || justPinched) { tdrag = mdrag = justPinched = false; return; }
+  if (tdrag || hdrag || mdrag || hmdrag || justPinched) { tdrag = hdrag = mdrag = hmdrag = justPinched = false; return; }
   buzz();
   if (zoom > 1) { resetZoom(true); return; }
   closeViewer();
@@ -462,12 +529,14 @@ track.addEventListener('wheel', e => {
     applyZoom(false);
     return;
   }
-  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+  // 세로 = 작품 넘김, 가로 = 버전 넘김 (터치 축과 동일)
+  const horiz = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+  const d = horiz ? e.deltaX : e.deltaY;
   e.preventDefault();
   clearTimeout(wheelT); wheelT = setTimeout(() => { wheelLock = false; }, 250);
-  if (wheelLock || Math.abs(e.deltaY) < 25) return;
+  if (wheelLock || Math.abs(d) < 25) return;
   wheelLock = true;
-  slideTo(e.deltaY > 0 ? 1 : -1);
+  horiz ? verTo(d > 0 ? 1 : -1) : slideTo(d > 0 ? 1 : -1);
 }, {passive: false});
 
 // 로고 인터랙션: 누를 때마다 원↔사각형 앞뒤가 바뀐다 — 이 앞뒤가 곧 모드다:
@@ -557,7 +626,9 @@ document.getElementById('gridToggle').onkeydown = e => {
 document.onkeydown = e => {
   if (!isOpen()) return;
   if (e.key === 'Escape') { closeViewer(); return; }
-  const dir = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1, ArrowDown: 1}[e.key];
+  const v = {ArrowLeft: -1, ArrowRight: 1}[e.key];   // 좌우 = 버전
+  if (v) { verTo(v); return; }
+  const dir = {ArrowUp: -1, ArrowDown: 1}[e.key];    // 상하 = 작품
   if (dir) slideTo(dir);
 };
 

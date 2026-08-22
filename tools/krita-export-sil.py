@@ -27,8 +27,9 @@ import re
 from krita import Krita, InfoObject
 from PyQt5.QtWidgets import QMessageBox
 
-# 번호 레이어 이름: MMDD_NN 또는 NN (+ _sil). optimize.sh의 numof와 같은 관용.
-NUM = re.compile(r"^(\d{4}_)?\d{2}$")
+# 번호 레이어 이름: MMDD_NN 또는 NN, 같은 작품의 버전은 MMDD_NN_v2 (+ _sil).
+# optimize.sh의 numof/verof와 같은 관용.
+NUM = re.compile(r"^(\d{4}_)?\d{2}(_v\d+)?$")
 
 
 def _say(text):

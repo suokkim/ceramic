@@ -18,6 +18,12 @@ numof() {
   printf '%s\n' "$1" | sed -n "s/^\([0-9][0-9]*_\)\{0,1\}s\{0,1\}\([0-9][0-9]\)\.${2:-png}\$/\2/p"
 }
 
+# 같은 작품의 다른 버전: MMDD_NN_v2.png → "NN 2" (번호와 버전, 공백 구분).
+# 버전 파일이 아니면 빈 값. 버전은 2부터 — 원작(접미사 없음)이 곧 v1이다.
+verof() {   # verof 0819_33_v2.png -> "33 2"
+  printf '%s\n' "$1" | sed -n "s/^\([0-9][0-9]*_\)\{0,1\}\([0-9][0-9]\)_v\([0-9][0-9]*\)\.png\$/\2 \3/p"
+}
+
 # 디렉터리에서 가장 큰 번호를 읽는다 (없으면 0). 앞의 0은 떼야 08·09가 8진수로 안 읽힌다.
 maxnum() {   # maxnum <디렉터리> <확장자>
   last=$(for f in "$1"/*."$2"; do numof "$(basename "$f")" "$2"; done | sort -n | tail -1)
@@ -46,6 +52,17 @@ check homepage.kra kra ""     # 번호 없는 파일
 check 0806_08.png~ png ""     # 편집기 백업
 check 0806_08.kra  png ""     # 확장자 불일치
 check 0806_8.png   png ""     # 한 자리는 번호로 안 침
+
+vcheck() {   # vcheck <입력> <기대값>
+  got=$(verof "$1")
+  if [ "$got" = "$2" ]; then echo "  ok   verof $1 -> '$got'"
+  else echo "  FAIL verof $1 -> '$got', 기대 '$2'"; fail=1; fi
+}
+vcheck 0819_33_v2.png     "33 2"
+vcheck 0819_33_v10.png    "33 10"
+vcheck 0819_33.png        ""      # 버전 아님
+vcheck 0819_33_sil.png    ""      # 실루엣
+vcheck 0819_33_v2_sil.png ""      # 버전 실루엣은 작품 아님
 
 # 여러 번 호출한 결과가 붙지 않는지 (예전 실전 버그)
 joined=$(printf '%s' "$(numof 0806_08.png)$(numof 0807_09.png)")

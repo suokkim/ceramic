@@ -14,12 +14,13 @@ mkdir -p docs/images/th docs/images/sq
 . ./tools/numof.sh
 
 # 번호를 못 읽는 파일에만 오늘 날짜로 번호를 붙인다 (Krita 밖에서 넣은 파일용).
-# *_sil.png(수제 실루엣, 아래 참조)는 작품이 아니므로 건드리지 않는다.
+# *_sil.png(수제 실루엣)와 *_v2.png(같은 작품의 버전, 아래 참조)는 새 작품이
+# 아니므로 건드리지 않는다 — 여기 예외를 안 걸면 numof가 못 읽어 새 번호를 받아버린다.
 next=$(for f in png/*.png; do numof "$(basename "$f")"; done | sort -n | tail -1 | sed 's/^0//')
 next=$(( ${next:-0} + 1 ))
 for f in png/*.png; do
   base=$(basename "$f")
-  case "$base" in *_sil.png) continue;; esac
+  case "$base" in *_sil.png|*_v[0-9]*.png) continue;; esac
   [ -n "$(numof "$base")" ] && continue
   new="$(date +%m%d)_$(printf '%02d' "$next").png"
   mv -f "$f" "png/$new"
@@ -70,6 +71,23 @@ echo "$map" | while read -r n f; do
   fi
   echo "$n.png $h" >> docs/.imghash.new
 done
+
+# 같은 작품의 버전(png/MMDD_NN_v2.png → docs/images/NN-2.png).
+# 뷰어에서 좌우 스와이프로만 보이므로 1600px PNG 하나만 만든다 — 그리드엔 원작
+# (대표판)만 나오니 썸네일(th/sq)도, 실루엣(si)도 원작 것을 그대로 쓴다.
+for f in $(ls -tr png/*_v[0-9]*.png 2>/dev/null); do
+  case "$f" in *_sil.png) continue;; esac
+  nv=$(verof "$(basename "$f")"); [ -z "$nv" ] && continue
+  n=${nv% *}; k=${nv#* }
+  out="docs/images/$n-$k.png"
+  h=$(md5 -q "$f")
+  old=$(grep "^$n-$k.png " docs/.imghash 2>/dev/null | cut -d' ' -f2)
+  if [ "$h" != "$old" ] || [ ! -f "$out" ]; then
+    cp "$f" "$out"
+    sips -Z 1600 "$out" >/dev/null
+  fi
+  echo "$n-$k.png $h" >> docs/.imghash.new
+done
 mv docs/.imghash.new docs/.imghash
 
 # 모아보기 실루엣(si/) — 웹용 PNG에서 오프라인 생성 (node silhouette.mjs).
@@ -90,6 +108,7 @@ silmap=$(for f in $(ls -tr png/*_sil.png 2>/dev/null); do
 
 for w in docs/images/*.png; do
   n=$(basename "$w" .png)
+  case "$n" in *-*) continue;; esac   # 버전(NN-2)은 실루엣 없음 — 원작 것을 공유
   si="docs/images/si/$n.svg"
   src="$w"; mode=""
   manual=$(echo "$silmap" | awk -v n="$n" '$1==n {print $2}')
@@ -113,17 +132,24 @@ rm -f docs/images/th/*.png
 # 때마다 흔들리지 않고, 그림이나 실루엣을 실제로 고쳤을 때만 바뀌어 캐시를
 # 무효화한다. 실루엣을 합치는 이유: 작품은 그대로 두고 수제 실루엣만 다시 그리면
 # URL이 안 바뀌어 기기들이 옛 실루엣을 계속 보여줬다(0810_22에서 실제로 겪었다).
+# 형식: 작품당 배열 [원작, v2, v3, …] — 첫 요소가 대표판(그리드에 보이는 판).
 python3 -c '
-import json, hashlib, os
-entries = []
+import json, hashlib, os, re
+groups = {}
 for line in open("docs/.imghash"):
     name, h = line.split()
-    si = "docs/images/si/" + name.replace(".png", ".svg")
-    if os.path.exists(si):
-        h = hashlib.md5((h + hashlib.md5(open(si, "rb").read()).hexdigest()).encode()).hexdigest()
-    entries.append(name + "?v=" + h[:8])
-entries.sort(reverse=True)
-print(json.dumps(entries, ensure_ascii=False))
+    base, ver = re.match(r"(\d+)(?:-(\d+))?\.png$", name).groups()
+    if ver is None:
+        si = "docs/images/si/" + base + ".svg"
+        if os.path.exists(si):
+            h = hashlib.md5((h + hashlib.md5(open(si, "rb").read()).hexdigest()).encode()).hexdigest()
+    groups.setdefault(base, []).append((int(ver or 0), name + "?v=" + h[:8]))
+out = []
+for base in sorted(groups, reverse=True):
+    vs = sorted(groups[base])
+    if vs[0][0] == 0:              # 원작 없는 고아 버전은 목록에서 뺀다
+        out.append([v for _, v in vs])
+print(json.dumps(out, ensure_ascii=False))
 ' > docs/images.json
 
 # 링크 공유 미리보기 이미지를 최신 작품(가장 큰 번호)으로 갱신.

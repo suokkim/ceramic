@@ -63,6 +63,16 @@ try {
   if (manual) {
     // 그린 그대로 + 톤 통일: 검정(0) → 오브제 톤 102(#666), 흰 종이(255) 그대로,
     // 사이 농담은 비례. 그다음 600px JPEG로 줄여 SVG로 감싼다. 그 외 처리 없음.
+    //
+    // 농담 정규화: 어떤 회색으로 그렸든 결과 톤이 같도록, 그림에서 가장 진한
+    // 붓값(노이즈에 안 흔들리게 하위 0.2% 지점)을 검정으로 당겨 늘린 뒤 위
+    // 매핑을 적용한다 — 중간 회색으로만 그린 실루엣도 검정으로 그린 것과 같은
+    // 102(#666)에 안착한다. 검정으로 그린 그림은 ink≈0이라 사실상 그대로다.
+    const histo = new Uint32Array(256);
+    for (let p = 0; p < N; p++) histo[lum[p]]++;
+    let cnt = 0, ink = 0;
+    for (let i = 0; i < 256; i++) { cnt += histo[i]; if (cnt >= N * 0.002) { ink = i; break; } }
+    if (ink > 240) ink = 0;   // 사실상 빈 그림 — 정규화 안 함(0으로 나누기 방지)
     const outStride = (w * 3 + 3) & ~3;
     const bmp = Buffer.alloc(54 + outStride * h);
     bmp.write('BM'); bmp.writeUInt32LE(bmp.length, 2); bmp.writeUInt32LE(54, 10);
@@ -72,8 +82,9 @@ try {
       const row = 54 + (h - 1 - y) * outStride;
       for (let x = 0; x < w; x++) {
         // 톤 통일 후 하이라이트 굽기(tone.mjs와 같은 커브) — 썸네일에 톤을 미리
-      // 구우면서 CSS 필터가 사라졌으므로 실루엣도 흰 종이(255→229)를 여기서 누른다
-      let v = Math.round(102 + lum[y * w + x] * 153 / 255);
+        // 구우면서 CSS 필터가 사라졌으므로 실루엣도 흰 종이(255→229)를 여기서 누른다
+        const l = Math.max(0, (lum[y * w + x] - ink) * 255 / (255 - ink));
+        let v = Math.round(102 + l * 153 / 255);
         if (v > 204) v = 204 + ((v - 204) >> 1);
         const o = row + x * 3;
         bmp[o] = bmp[o + 1] = bmp[o + 2] = v;

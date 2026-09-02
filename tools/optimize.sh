@@ -103,7 +103,8 @@ for f in $(ls -tr png/*_v[0-9]*.png 2>/dev/null); do
   fi
   echo "$n-$k.png $h" >> docs/.imghash.new
 done
-mv docs/.imghash.new docs/.imghash
+cmp -s docs/.imghash.new docs/.imghash && rm -f docs/.imghash.new ||
+  mv docs/.imghash.new docs/.imghash
 
 # 모아보기 실루엣(si/) — 웹용 PNG에서 오프라인 생성 (node silhouette.mjs).
 # 처음엔 브라우저가 240px JPEG 썸네일로 매번 계산했는데 노이즈·저해상도 때문에
@@ -165,11 +166,19 @@ for base in sorted(groups, reverse=True):
     if vs[0][0] == 0:              # 원작 없는 고아 버전은 목록에서 뺀다
         out.append([v for _, v in vs])
 print(json.dumps(out, ensure_ascii=False))
-' > docs/images.json
+' > docs/images.json.new
+# 내용이 같으면 파일을 건드리지 않는다 — 헛트리거로 스크립트가 돌 때마다 mtime이
+# 바뀌면 감시·백업 도구들이 연쇄로 깨어난다(실제로 autopush가 헛돌며 매번 다시 썼다)
+cmp -s docs/images.json.new docs/images.json && rm -f docs/images.json.new ||
+  mv docs/images.json.new docs/images.json
 
 # 링크 공유 미리보기 이미지를 최신 작품(가장 큰 번호)으로 갱신.
 # ls docs/images가 아니라 .imghash를 읽는다 — 디렉터리(th)가 끼면 그게 tail -1로 잡힌다.
 newest=$(cut -d' ' -f1 docs/.imghash | sort | tail -1)
-sed -i '' "s|\(og:image\" content=\"https://suokkim.github.io/ceramic/images/\)[^\"]*|\1$newest|" docs/index.html
+# sed -i는 값이 같아도 파일을 새로 쓴다 — 위 images.json과 같은 이유로 다를 때만 바꾼다
+sed "s|\(og:image\" content=\"https://suokkim.github.io/ceramic/images/\)[^\"]*|\1$newest|" \
+  docs/index.html > docs/index.html.new
+cmp -s docs/index.html.new docs/index.html && rm -f docs/index.html.new ||
+  mv docs/index.html.new docs/index.html
 
 echo "완료: $(ls docs/images/*.png | wc -l | tr -d ' ')개 이미지, 공유 이미지: $newest"

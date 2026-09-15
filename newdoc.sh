@@ -28,13 +28,34 @@ if [ "$1" != "-n" ]; then
   fi
 fi
 
-# 다음 번호 = 내보낸 png의 마지막 번호와 아직 안 내보낸 kra 번호 중 큰 값 + 1.
+# 다음 번호 = **png/의 마지막 번호**와 아직 안 내보낸 kra 번호 중 큰 값 + 1.
 # png/를 반드시 봐야 한다 — 하루에 여러 장을 내보내면 kra 하나에 png가 여러 개라
 # kra만 보면 이미 쓴 번호를 다시 발급한다(실제로 0807_12까지 있는데 0808_10을 만들었다).
 # 번호 읽는 규칙은 optimize.sh와 공유한다. 여기서 따로 정규식을 쓰지 말 것.
 . ./tools/numof.sh
 lastpng=$(maxnum png png)
-lastkra=$(maxnum kra kra)
+
+# kra는 **손댄 것만** 센다. 매일 08시에 캔버스가 자동으로 생기는데, 작업을 안 한 날의
+# 빈 캔버스까지 번호를 먹으면 갤러리 번호에 영영 구멍이 남는다(작업 안 한 날 = 그
+# 번호를 다음 날이 다시 쓰면 된다).
+# 빈 캔버스 판정은 파일 크기로 한다 — 템플릿 복사본은 70KB대, 실제로 그린 파일은
+# 최소 5MB대(12개 표본 전부). Krita는 레이어 타일과 mergedimage를 함께 저장해서
+# 한 번 그리고 저장하면 MB 단위로 뛴다.
+# ponytail: 1MB 문턱 — 빈 캔버스(70KB)와 실제 작업(5MB+) 사이가 넓어 충분하다.
+#   아주 짧게 그린 날이 1MB 아래로 나오면 문턱을 올리거나 mergedimage 비교로 바꿀 것.
+# 단 **오늘 만든 것은 크기와 무관하게 센다** — 안 그러면 ./newdoc.sh -n이 같은 번호를
+# 또 발급해 방금 만든 캔버스를 덮어쓴다.
+EMPTY_MAX=1048576
+lastkra=0
+for f in kra/*.kra; do
+  [ -f "$f" ] || continue
+  base=$(basename "$f")
+  n=$(numof "$base" kra); [ -n "$n" ] || continue
+  [ "${base%%_*}" != "$today" ] && [ "$(stat -f %z "$f")" -lt "$EMPTY_MAX" ] && continue
+  n=$(echo "$n" | sed 's/^0//')
+  [ "$n" -gt "$lastkra" ] && lastkra=$n
+done
+
 last=$(( lastpng > lastkra ? lastpng : lastkra ))
 out="kra/${today}_$(printf '%02d' $(( last + 1 ))).kra"
 

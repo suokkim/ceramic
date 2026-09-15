@@ -38,20 +38,26 @@ lastpng=$(maxnum png png)
 # kra는 **손댄 것만** 센다. 매일 08시에 캔버스가 자동으로 생기는데, 작업을 안 한 날의
 # 빈 캔버스까지 번호를 먹으면 갤러리 번호에 영영 구멍이 남는다(작업 안 한 날 = 그
 # 번호를 다음 날이 다시 쓰면 된다).
-# 빈 캔버스 판정은 파일 크기로 한다 — 템플릿 복사본은 70KB대, 실제로 그린 파일은
-# 최소 5MB대(12개 표본 전부). Krita는 레이어 타일과 mergedimage를 함께 저장해서
-# 한 번 그리고 저장하면 MB 단위로 뛴다.
-# ponytail: 1MB 문턱 — 빈 캔버스(70KB)와 실제 작업(5MB+) 사이가 넓어 충분하다.
-#   아주 짧게 그린 날이 1MB 아래로 나오면 문턱을 올리거나 mergedimage 비교로 바꿀 것.
-# 단 **오늘 만든 것은 크기와 무관하게 센다** — 안 그러면 ./newdoc.sh -n이 같은 번호를
-# 또 발급해 방금 만든 캔버스를 덮어쓴다.
-EMPTY_MAX=1048576
-lastkra=0
+# 반대로 **그리다 만 파일은 아직 png가 없어도 번호를 예약**해야 한다 — 며칠 뒤에
+# 내보낼 수 있고, 그 사이 다른 작품이 그 번호를 가져가면 내보낼 때 덮어쓴다.
+# 그래서 png 유무가 아니라 **kra 안에 그린 데이터가 있는지**로 가른다(kra-haspaint.py).
+# 파일 하나에 파이썬을 한 번씩 띄우면 느려서 후보를 모아 한 번에 묻는다.
+# 단 **오늘 만든 것은 내용과 무관하게 센다** — 안 그러면 ./newdoc.sh -n이 같은 번호를
+# 또 발급해 방금 만든 빈 캔버스를 덮어쓴다.
+cand=""
+todaykra=""
 for f in kra/*.kra; do
   [ -f "$f" ] || continue
   base=$(basename "$f")
-  n=$(numof "$base" kra); [ -n "$n" ] || continue
-  [ "${base%%_*}" != "$today" ] && [ "$(stat -f %z "$f")" -lt "$EMPTY_MAX" ] && continue
+  [ -n "$(numof "$base" kra)" ] || continue
+  if [ "${base%%_*}" = "$today" ]; then todaykra="$todaykra $f"; else cand="$cand $f"; fi
+done
+# shellcheck disable=SC2086
+worked=$([ -n "$cand" ] && python3 tools/kra-haspaint.py $cand)
+
+lastkra=0
+for f in $todaykra $worked; do
+  n=$(numof "$(basename "$f")" kra)
   n=$(echo "$n" | sed 's/^0//')
   [ "$n" -gt "$lastkra" ] && lastkra=$n
 done

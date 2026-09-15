@@ -20,7 +20,8 @@
   - A4 300dpi 2480×3508. 구성: 작품 그룹(이름=번호, 안에 sign·sil) + 흰 배경 `Layer 1`.
     그룹 이름은 생성 때 자동 기입되고, 열면 **sil이 활성 레이어**다(전부 눈 켜짐).
   - NN = **png/의 마지막 번호**와 아직 안 내보낸 kra 번호 중 큰 값 + 1.
-    작업을 안 한 날의 빈 캔버스(1MB 미만)는 세지 않아 그 번호를 다음 날이 다시 쓴다.
+    작업을 안 한 날의 빈 캔버스는 세지 않아 그 번호를 다음 날이 다시 쓰고,
+    그리다 만 파일은 png가 없어도 번호를 예약한다(`tools/kra-haspaint.py`가 판정).
 - 오늘 캔버스가 이미 있으면 새로 만들지 않고 열기만 한다.
 - 같은 날 캔버스 추가: `./newdoc.sh -n`.
 
@@ -109,6 +110,7 @@ Layer 1        ← 번호 없는 레이어 = 공용 배경 (모든 작품에 깔
 | `tools/template.kra` | 새 캔버스 원형 (흰 배경 + 작품 그룹{sign, sil}) |
 | `newdoc.sh` | 아침 캔버스 생성 (번호 발급, 중복 방지) |
 | `tools/numof.sh` | 파일명 → 번호 규칙의 단일 소스 (`sh tools/numof.sh --test`) |
+| `tools/kra-haspaint.py` | kra에 그린 내용이 있는지 판정 (번호 예약/회수 판단) |
 | `tools/krita-export-sil.py` | Krita 단축키 내보내기 (작품/실루엣 분리, 단일·다작품 모드) |
 | `autopush.sh` + launchd | png/ 감시 → optimize → 커밋·푸시 |
 | `tools/optimize.sh` | 웹용 4종 생성 + 목록 갱신 (바뀐 것만) |

@@ -54,8 +54,11 @@
 - 같은 날 하나 더 만들려면 `./newdoc.sh -n`. 인자 없이 실행하면 오늘 것이 이미 있을 때
   새로 만들지 않고 열기만 한다(자동 실행이 여러 번 돌아도 안전하게).
 
-### 매일 아침 8시 자동 실행 (설정 완료)
-- `~/Library/LaunchAgents/com.ceramic.newdoc.plist` — 매일 08:00에 실행. 로그 `/tmp/ceramic-newdoc.log`.
+### 매일 아침 8시 자동 실행 — **중지됨 (2026-10-20)**
+- 안 그린 날에도 빈 캔버스가 쌓여서 껐다(34개 정리). 이제 `./newdoc.sh`를 직접 실행한다.
+  `launchctl bootout` + **`launchctl disable`** — disable까지 해야 재부팅·로그인 후에도 안 뜬다.
+  다시 켜기: `launchctl enable gui/$UID/com.ceramic.newdoc && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.newdoc.plist`
+- `~/Library/LaunchAgents/com.ceramic.newdoc.plist` — plist는 그대로 둔다. 로그 `/tmp/ceramic-newdoc.log`.
 - **스크립트를 직접 돌리지 않고 `~/Applications/Ceramic 새 작업.app`을 `open`으로 띄운다.**
   launchd가 `/bin/sh`로 직접 실행하면 macOS가 `~/Documents` 접근을 막아
   (`Operation not permitted`) 아무것도 못 한다. 앱을 거치면 권한 주체가 앱이 되어 통과한다.

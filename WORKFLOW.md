@@ -13,9 +13,11 @@
                                                                  └─────────────────────────┘
 ```
 
-## 1. 아침 — 캔버스 자동 생성 (08:00)
+## 1. 캔버스 만들기 (`./newdoc.sh`)
 
-- launchd(`com.ceramic.newdoc`)가 매일 08:00 `newdoc.sh` 실행.
+- **매일 08:00 자동 생성은 2026-10-20에 중지**(`launchctl disable`). 안 그린 날에도
+  빈 캔버스가 쌓여서다 — 그릴 때 `./newdoc.sh`를 직접 실행한다.
+  다시 켜기: `launchctl enable gui/$UID/com.ceramic.newdoc && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.newdoc.plist`
 - **`tools/template.kra`** 를 `kra/MMDD_NN.kra`로 복사해 Krita로 연다.
   - A4 300dpi 2480×3508. 구성: 작품 그룹(이름=번호, 안에 sign·sil) + 흰 배경 `Layer 1`.
     그룹 이름은 생성 때 자동 기입되고, 열면 **sil이 활성 레이어**다(전부 눈 켜짐).

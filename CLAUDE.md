@@ -23,7 +23,8 @@
 ```
 ./newdoc.sh    # kra/MMDD_NN.kra (A4 300dpi 2480x3508) 생성 후 Krita로 열기
 ```
-매일 아침 8시에 자동 실행됨.
+**매일 8시 자동 생성은 2026-10-20에 중지했다** — 그릴 때 직접 실행한다.
+다시 켜려면 `launchctl enable gui/$UID/com.ceramic.newdoc && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.newdoc.plist`.
 
 ## 이미지 올리기
 Krita에서 `png/`로 내보내면 끝. 감시 에이전트가 `tools/optimize.sh` → 커밋 → 푸시까지 자동 처리.

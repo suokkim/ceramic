@@ -1,6 +1,7 @@
 #!/bin/sh
-# png/에 PNG가 떨어지면 자동으로 최적화 → 커밋 → 푸시.
-# LaunchAgent(com.ceramic.autopush)가 png/ 폴더 변화를 감지해 이 스크립트를 부른다.
+# png/의 PNG를 최적화 → 커밋 → 푸시. Krita에서 내보낸 뒤 직접 실행한다.
+# 원래는 LaunchAgent(com.ceramic.autopush)가 png/ 변화를 감지해 불렀지만,
+# 폴더를 열어보기만 해도 발동해서 2026-10-23에 껐다(POLICY 5절). plist는 남아 있다.
 cd "$(dirname "$0")"
 
 # --- 헛트리거 차단 ---

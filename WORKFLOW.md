@@ -1,10 +1,10 @@
 # 동글사각 | CIRCLE SQUARE — 전체 작업 프로세스
 
-그림 그리는 것 말고는 전부 자동이다. 이 문서는 아침 캔버스 생성부터 사이트 배포까지
-무엇이 언제 어떻게 돌아가는지의 흐름을 정리한 것. 세부 정책·규격은 [POLICY.md](POLICY.md).
+명령은 양 끝 둘뿐 — 시작할 때 `./newdoc.sh`, 내보낸 뒤 `./autopush.sh`. 그 사이는 전부
+자동이다. 이 문서는 캔버스 생성부터 사이트 배포까지의 흐름을 정리한 것. 세부 정책·규격은 [POLICY.md](POLICY.md).
 
 ```
- 08:00 자동                Krita 작업              단축키 ⌘⇧1                 자동 (감시)
+ ./newdoc.sh               Krita 작업              단축키 ⌘⇧1                 ./autopush.sh
 ┌───────────┐   ┌──────────────────┐   ┌────────────────────┐   ┌─────────────────────────┐
 │ newdoc.sh  │ → │ 그림: 작품 레이어 │ → │ krita-export-sil.py │ → │ autopush.sh             │
 │ template   │   │ 실루엣: sil 레이어│   │ png/NN.png          │   │  → optimize.sh          │
@@ -64,13 +64,15 @@ Layer 1        ← 번호 없는 레이어 = 공용 배경 (모든 작품에 깔
 - 파일명·폴더 타이핑 없음. 레이어 가시성은 내보낸 뒤 원상복구.
 - 수정도 같은 키 — 문서(레이어) 이름이 같으니 같은 파일을 덮어쓰고 그 자리만 갱신된다.
 
-## 4. 배포 — 전부 자동
+## 4. 배포 — `./autopush.sh`
 
-`png/` 폴더가 바뀌는 순간 감시 에이전트(`com.ceramic.autopush` → `autopush.sh`)가:
+**`png/` 감시 자동 실행은 2026-10-23에 중지**(`launchctl disable`). 폴더를 Finder로
+열어보기만 해도 발동해서, 할 일이 없는데 앱이 떴다 사라지길 반복했다.
+내보낸 뒤 `./autopush.sh`를 직접 실행한다 — 감시가 부르던 그 스크립트 그대로다.
+다시 켜기: `launchctl enable gui/$UID/com.ceramic.autopush && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.autopush.plist`
 
 0. **png/ 지문 대조** — 파일명·크기·수정시각이 지난번과 같으면 즉시 종료.
-   launchd는 내용이 안 바뀌어도 폴더 메타데이터 이벤트만으로 발동해서, 이게 없으면
-   앱이 혼자 뜨고 지기를 반복한다(실제로 겪었다). 동시 실행 방지 락도 함께 건다.
+   동시 실행 방지 락도 함께 건다.
 1. 파일 크기가 멈출 때까지 대기 (내보내는 중인 파일 보호)
 2. **`tools/optimize.sh`** 실행:
    - `docs/images/NN.png` — 웹용 원본 (긴 변 1600px)
@@ -101,9 +103,9 @@ Layer 1        ← 번호 없는 레이어 = 공용 배경 (모든 작품에 깔
 | 작품 수정 | 그 문서 열어 고치고 ⌘⇧1 — 끝 |
 | 수제 실루엣 취소 | `png/NN_sil.png`·`docs/images/si/NN.svg` 삭제 → `./tools/optimize.sh` |
 | 갤러리 순서 변경 | `png/` 파일 번호 수정 → `./tools/optimize.sh` |
-| 수동 배포 | `./tools/optimize.sh` 후 직접 커밋·푸시 (autopush와 결과 동일) |
-| 자동 실행 로그 | `/tmp/ceramic-newdoc.log`, `/tmp/ceramic-autopush.log` |
-| 자동 켜고 끄기 | `launchctl bootout/bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.*.plist` |
+| 배포 | `./autopush.sh` (또는 `./tools/optimize.sh` 후 직접 커밋·푸시) |
+| 자동 실행 | newdoc·autopush 둘 다 중지됨 (2026-10-20 / 10-23) |
+| 다시 켜기 | `launchctl enable gui/$UID/com.ceramic.<이름> && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.<이름>.plist` |
 
 ## 7. 구성 요소
 
@@ -114,7 +116,7 @@ Layer 1        ← 번호 없는 레이어 = 공용 배경 (모든 작품에 깔
 | `tools/numof.sh` | 파일명 → 번호 규칙의 단일 소스 (`sh tools/numof.sh --test`) |
 | `tools/kra-haspaint.py` | kra에 그린 내용이 있는지 판정 (번호 예약/회수 판단) |
 | `tools/krita-export-sil.py` | Krita 단축키 내보내기 (작품/실루엣 분리, 단일·다작품 모드) |
-| `autopush.sh` + launchd | png/ 감시 → optimize → 커밋·푸시 |
+| `autopush.sh` | optimize → 커밋·푸시 (내보낸 뒤 직접 실행) |
 | `tools/optimize.sh` | 웹용 4종 생성 + 목록 갱신 (바뀐 것만) |
 | `tools/silhouette.mjs` | 실루엣 SVG 생성 (자동 계산 / `--manual` 손그림 벡터화) |
 | `docs/` | GitHub Pages 사이트 루트 (정적 HTML 1장, 의존성 없음) |

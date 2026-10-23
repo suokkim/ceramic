@@ -184,7 +184,10 @@ Krita에서 `png/`로 내보내기만 하면 끝이다. 나머지는 감시 에�
 - `autopush.sh`: 파일 크기가 멈출 때까지 대기(내보내는 중인 파일 방지) →
   `tools/optimize.sh` → 바뀐 게 있을 때만 커밋·푸시. 1~2분 뒤 사이트 반영.
 - 손으로 하려면: `./tools/optimize.sh` 후 커밋·푸시. 결과는 같다.
-- 끄기: `launchctl bootout gui/$UID/com.ceramic.autopush`
+- **2026-10-23 중지.** 폴더 메타데이터만 바뀌어도(Finder로 열어보기만 해도) 발동해서
+  23일 동안 21번 헛돌았다 — 하는 일은 없지만 앱이 뜨는 게 거슬린다. 이제 내보낸 뒤
+  `./autopush.sh`를 직접 실행한다(감시가 부르던 그 스크립트 그대로).
+- 다시 켜기: `launchctl enable gui/$UID/com.ceramic.autopush && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.autopush.plist`
 
 ## 6. 디자인 컨셉
 - **아이덴티티: 동그라미 + 사각형 조합** (한글명 "동글사각", 영문명 "CIRCLE SQUARE").

@@ -27,5 +27,7 @@
 다시 켜려면 `launchctl enable gui/$UID/com.ceramic.newdoc && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.newdoc.plist`.
 
 ## 이미지 올리기
-Krita에서 `png/`로 내보내면 끝. 감시 에이전트가 `tools/optimize.sh` → 커밋 → 푸시까지 자동 처리.
-수정본은 그냥 다시 내보내면 같은 파일을 덮어쓴다. 손으로 하려면 `./tools/optimize.sh` 후 커밋·푸시.
+Krita에서 `png/`로 내보낸 뒤 `./autopush.sh` — 최적화·커밋·푸시까지 한 번에.
+수정본은 그냥 다시 내보내면 같은 파일을 덮어쓴다.
+**`png/` 감시 자동 업로드는 2026-10-23에 중지했다**(폴더를 열어보기만 해도 발동해서).
+다시 켜려면 `launchctl enable gui/$UID/com.ceramic.autopush && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.ceramic.autopush.plist`.

@@ -178,6 +178,9 @@ Krita에서 `png/`로 내보내기만 하면 끝이다. 나머지는 감시 에�
 - `~/Library/LaunchAgents/com.ceramic.autopush.plist` — `png/` 폴더가 바뀌면
   `autopush.sh` 실행(앱 `~/Applications/Ceramic 자동업로드.app` 경유, 2절과 같은 이유).
   로그 `/tmp/ceramic-autopush.log`.
+  `open`에 **`-g -j`**(숨김·포커스 유지)를 준다 — WatchPaths는 폴더 메타데이터만
+  바뀌어도 발동해서(Finder로 열어보기만 해도) 이게 없으면 할 일도 없는데 앱이
+  눈앞에 떴다 사라진다. 2026-10-23에 추가.
 - `autopush.sh`: 파일 크기가 멈출 때까지 대기(내보내는 중인 파일 방지) →
   `tools/optimize.sh` → 바뀐 게 있을 때만 커밋·푸시. 1~2분 뒤 사이트 반영.
 - 손으로 하려면: `./tools/optimize.sh` 후 커밋·푸시. 결과는 같다.
